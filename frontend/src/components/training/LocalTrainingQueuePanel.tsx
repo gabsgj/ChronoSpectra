@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 
 import type { TrainingRuntimeResponse } from '../../types'
 
@@ -24,6 +24,8 @@ interface LocalTrainingQueuePanelProps {
   title?: string
   summary?: string
   maxVisibleJobs?: number | null
+  collapsible?: boolean
+  defaultCollapsed?: boolean
 }
 
 const formatModeLabel = (value: string | null | undefined) => {
@@ -65,8 +67,7 @@ const buildRuntimeQueue = (
 
     if (result?.status === 'failed') {
       status = 'failed'
-      description =
-        result.error ?? 'This job failed before the new artifacts were saved.'
+      description = result.error ?? 'This job failed before the new artifacts were saved.'
     } else if (result) {
       status = 'completed'
       description =
@@ -184,7 +185,10 @@ export const LocalTrainingQueuePanel = ({
   title = 'Local Training Queue',
   summary = 'See the order of shared and per-stock jobs, along with the stage currently running on the backend.',
   maxVisibleJobs = 4,
+  collapsible = false,
+  defaultCollapsed = false,
 }: LocalTrainingQueuePanelProps) => {
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed)
   const queueEntries = buildRuntimeQueue(runtime)
   const visibleEntries = selectVisibleQueueEntries(queueEntries, maxVisibleJobs)
   const progressPercent =
@@ -193,7 +197,7 @@ export const LocalTrainingQueuePanel = ({
           100,
           Math.max(
             0,
-            (((runtime.completed_jobs ?? 0) / (runtime.total_jobs ?? 1)) * 100),
+            ((runtime.completed_jobs ?? 0) / (runtime.total_jobs ?? 1)) * 100,
           ),
         )
       : 0
@@ -206,7 +210,7 @@ export const LocalTrainingQueuePanel = ({
           <h3 className="text-2xl text-ink">{title}</h3>
           <p className="max-w-3xl text-sm leading-7 text-muted">{summary}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-3">
           <span
             className={[
               'inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]',
@@ -218,13 +222,42 @@ export const LocalTrainingQueuePanel = ({
             {runtime?.is_running ? 'Run in progress' : 'Runtime idle'}
           </span>
           <span className="inline-flex rounded-full border border-stroke/70 bg-card/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-            {runtime ? `${runtime.completed_jobs ?? 0} / ${runtime.total_jobs ?? 0} jobs` : 'Waiting'}
+            {runtime
+              ? `${runtime.completed_jobs ?? 0} / ${runtime.total_jobs ?? 0} jobs`
+              : 'Waiting'}
           </span>
+          {collapsible ? (
+            <button
+              type="button"
+              onClick={() => setIsCollapsed((current) => !current)}
+              aria-label={isCollapsed ? 'Show runtime queue panel' : 'Hide runtime queue panel'}
+              aria-expanded={!isCollapsed}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-stroke/70 bg-card/70 text-muted transition hover:border-stroke hover:text-ink"
+            >
+              <svg
+                viewBox="0 0 20 20"
+                className={[
+                  'h-4 w-4 transition-transform duration-200',
+                  isCollapsed ? '-rotate-90' : 'rotate-0',
+                ].join(' ')}
+                aria-hidden="true"
+              >
+                <path
+                  d="M5.5 7.5L10 12l4.5-4.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          ) : null}
           {headerExtras}
         </div>
       </div>
 
-      {runtime ? (
+      {!isCollapsed && runtime ? (
         <>
           <div className="grid gap-4 md:grid-cols-3">
             <div className="rounded-[18px] border border-stroke/70 bg-card/70 p-4">
@@ -233,7 +266,8 @@ export const LocalTrainingQueuePanel = ({
                 {runtime.active_job_label ?? 'Waiting'}
               </p>
               <p className="mt-2 text-xs leading-5 text-muted">
-                {runtime.active_stage_detail ?? 'The next backend stage update will appear here.'}
+                {runtime.active_stage_detail ??
+                  'The next backend stage update will appear here.'}
               </p>
             </div>
             <div className="rounded-[18px] border border-stroke/70 bg-card/70 p-4">
@@ -297,9 +331,7 @@ export const LocalTrainingQueuePanel = ({
                       <p className="text-xs uppercase tracking-[0.18em] text-muted">
                         Job {entry.index + 1}
                       </p>
-                      <p className="mt-2 text-lg font-semibold text-ink">
-                        {entry.subjectLabel}
-                      </p>
+                      <p className="mt-2 text-lg font-semibold text-ink">{entry.subjectLabel}</p>
                       <p className="mt-1 text-xs uppercase tracking-[0.18em] text-muted">
                         {entry.modeLabel}
                       </p>
@@ -313,9 +345,7 @@ export const LocalTrainingQueuePanel = ({
                       {formatQueueStatusLabel(entry.status)}
                     </span>
                   </div>
-                  <p className="mt-4 pl-3 text-sm leading-6 text-muted">
-                    {entry.description}
-                  </p>
+                  <p className="mt-4 pl-3 text-sm leading-6 text-muted">{entry.description}</p>
                 </article>
               )
             })}
@@ -323,12 +353,12 @@ export const LocalTrainingQueuePanel = ({
 
           {maxVisibleJobs !== null && visibleEntries.length < queueEntries.length ? (
             <p className="text-sm leading-6 text-muted">
-              Showing {visibleEntries.length} of {queueEntries.length} jobs around the
-              current queue position. Open the Training page for the full runtime view.
+              Showing {visibleEntries.length} of {queueEntries.length} jobs around the current
+              queue position. Open the Training page for the full runtime view.
             </p>
           ) : null}
         </>
-      ) : (
+      ) : !isCollapsed ? (
         <div className="rounded-[18px] border border-stroke/70 bg-card/70 p-4">
           <p className="text-sm font-semibold text-ink">
             {loading ? 'Loading local-training runtime...' : 'No runtime snapshot yet.'}
@@ -339,9 +369,9 @@ export const LocalTrainingQueuePanel = ({
               : 'Once the backend starts or records a local-training run, the queue order will appear here.'}
           </p>
         </div>
-      )}
+      ) : null}
 
-      {error ? (
+      {!isCollapsed && error ? (
         <div className="rounded-[18px] border border-amber/30 bg-amber/10 px-4 py-3 text-sm leading-6 text-muted">
           <p>{error}</p>
           {hint ? <p className="mt-2 text-xs leading-5 text-muted">{hint}</p> : null}

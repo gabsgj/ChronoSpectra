@@ -18,6 +18,7 @@ import type {
   TrainingReportCollectionResponse,
   TrainingReportDetailResponse,
   TransformName,
+  VariantModelMode,
 } from '../types'
 
 export class ApiClientError extends Error {
@@ -198,7 +199,11 @@ export const apiClient = {
       { signal: options.signal },
     )
   },
-  getLiveStreamUrl: (stockId: string) => `${API_BASE_URL}/live/stream/${stockId}`,
+  getLiveStreamUrl: (stockId: string, mode?: VariantModelMode | null) => {
+    const query = buildSearchParams({ mode: mode ?? undefined })
+    const suffix = query ? `?${query}` : ''
+    return `${API_BASE_URL}/live/stream/${stockId}${suffix}`
+  },
   parseLiveEvent: (rawEvent: MessageEvent<string>): LiveMarketEvent => {
     return JSON.parse(rawEvent.data) as LiveMarketEvent
   },

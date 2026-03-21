@@ -22,11 +22,15 @@ STREAM_INTERVAL_SECONDS = 15
 
 
 @router.get("/stream/{stock_id}", responses=LIVE_ERROR_RESPONSES)
-async def live_stream(stock_id: str, request: Request) -> StreamingResponse:
+async def live_stream(
+    stock_id: str,
+    request: Request,
+    mode: str | None = None,
+) -> StreamingResponse:
     stock = require_stock(request, stock_id)
     config = request.app.state.config
     fetcher = get_fetcher(stock, config)
-    initial_prediction = predict_latest(stock_id, request)
+    initial_prediction = predict_latest(stock_id, request, mode=mode)
     try:
         initial_price = fetcher.get_latest_price()
     except ValueError as exc:
@@ -54,7 +58,7 @@ async def live_stream(stock_id: str, request: Request) -> StreamingResponse:
             prediction = (
                 initial_prediction
                 if not status_payload["market_open"]
-                else predict_latest(stock_id, request)
+                else predict_latest(stock_id, request, mode=mode)
             )
             payload = {
                 "stock_id": stock["id"],

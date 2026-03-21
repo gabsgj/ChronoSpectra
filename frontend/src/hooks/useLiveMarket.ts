@@ -5,6 +5,7 @@ import type {
   LiveConnectionState,
   LiveMarketEvent,
   LivePredictionPoint,
+  VariantModelMode,
 } from '../types'
 
 const RECONNECT_DELAYS_MS = [1000, 2000, 4000]
@@ -19,14 +20,16 @@ interface LiveMarketState {
   snapshot: LiveMarketEvent | null
 }
 
-const getStorageKey = (stockId: string) => `${LIVE_STORAGE_PREFIX}:${stockId}`
+const getStorageKey = (stockId: string, mode: VariantModelMode | null) => {
+  return `${LIVE_STORAGE_PREFIX}:${stockId}:${mode ?? 'auto'}`
+}
 
-const readPersistedState = (stockId: string): Pick<
+const readPersistedState = (stockId: string, mode: VariantModelMode | null): Pick<
   LiveMarketState,
   'history' | 'snapshot'
 > => {
   try {
-    const rawValue = window.localStorage.getItem(getStorageKey(stockId))
+    const rawValue = window.localStorage.getItem(getStorageKey(stockId, mode))
     if (!rawValue) {
       return {
         history: [],
@@ -56,17 +59,21 @@ const readPersistedState = (stockId: string): Pick<
 
 const writePersistedState = (
   stockId: string,
+  mode: VariantModelMode | null,
   state: Pick<LiveMarketState, 'history' | 'snapshot'>,
 ) => {
   try {
-    window.localStorage.setItem(getStorageKey(stockId), JSON.stringify(state))
+    window.localStorage.setItem(getStorageKey(stockId, mode), JSON.stringify(state))
   } catch {
     // Ignore storage failures and keep the live session functional.
   }
 }
 
-const buildInitialState = (stockId: string): LiveMarketState => {
-  const persistedState = readPersistedState(stockId)
+const buildInitialState = (
+  stockId: string,
+  mode: VariantModelMode | null,
+): LiveMarketState => {
+  const persistedState = readPersistedState(stockId, mode)
   return {
     connectionState: persistedState.snapshot?.market_open ? 'connecting' : 'idle',
     error: null,
@@ -102,20 +109,23 @@ const mergeHistoryPoint = (
   return [...deduplicated, point].slice(-LIVE_HISTORY_LIMIT)
 }
 
-export const useLiveMarket = (stockId: string) => {
-  const [state, setState] = useState<LiveMarketState>(() => buildInitialState(stockId))
+export const useLiveMarket = (
+  stockId: string,
+  mode: VariantModelMode | null,
+) => {
+  const [state, setState] = useState<LiveMarketState>(() => buildInitialState(stockId, mode))
   const [requestVersion, setRequestVersion] = useState(0)
 
   useEffect(() => {
-    setState(buildInitialState(stockId))
-  }, [stockId])
+    setState(buildInitialState(stockId, mode))
+  }, [mode, stockId])
 
   useEffect(() => {
-    writePersistedState(stockId, {
+    writePersistedState(stockId, mode, {
       history: state.history,
       snapshot: state.snapshot,
     })
-  }, [state.history, state.snapshot, stockId])
+  }, [mode, state.history, state.snapshot, stockId])
 
   useEffect(() => {
     let allowReconnect = true
@@ -147,7 +157,7 @@ export const useLiveMarket = (stockId: string) => {
         reconnectAttempt,
       }))
 
-      source = new EventSource(apiClient.getLiveStreamUrl(stockId))
+      source = new EventSource(apiClient.getLiveStreamUrl(stockId, mode))
       source.onmessage = (messageEvent) => {
         const payload = apiClient.parseLiveEvent(messageEvent)
         const point = toPredictionPoint(payload)
@@ -220,14 +230,14 @@ export const useLiveMarket = (stockId: string) => {
       clearReconnectTimer()
       closeSource()
     }
-  }, [requestVersion, stockId])
+  }, [mode, requestVersion, stockId])
 
   return {
     ...state,
     retry: () => {
       startTransition(() => {
         setState((currentState) => ({
-          ...buildInitialState(stockId),
+          ...buildInitialState(stockId, mode),
           history: currentState.history,
           snapshot: currentState.snapshot,
         }))

@@ -129,7 +129,7 @@ export const Sidebar = ({
                   route.id === 'training' && trainingRouteMeta?.emphasisClass
                     ? ` ${trainingRouteMeta.emphasisClass}`
                     : ''
-                return `flex items-center justify-between rounded-2xl border px-4 py-3 text-sm font-medium transition ${
+                return `flex items-start justify-between gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition ${
                   isActive
                     ? 'border-teal bg-teal/10 text-teal'
                     : `border-stroke/60 bg-card/70 text-ink hover:border-teal/40 hover:text-teal${routeEmphasis}`
@@ -137,7 +137,7 @@ export const Sidebar = ({
               }}
               aria-label={`${route.label}. ${route.description}`}
             >
-              <div className="space-y-1">
+              <div className="min-w-0 flex-1 space-y-1">
                 <span className="block">{route.label}</span>
                 <span className="block text-xs font-normal leading-5 text-muted">
                   {route.description}
@@ -151,14 +151,14 @@ export const Sidebar = ({
               {route.id === 'training' && trainingRouteMeta ? (
                 <span
                   className={[
-                    'inline-flex rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.18em]',
+                    'inline-flex shrink-0 rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-[0.18em]',
                     trainingRouteMeta.badgeClass,
                   ].join(' ')}
                 >
                   {trainingRouteMeta.badgeLabel}
                 </span>
               ) : (
-                <span className="text-xs uppercase tracking-[0.18em] text-muted">
+                <span className="shrink-0 text-xs uppercase tracking-[0.18em] text-muted">
                   View
                 </span>
               )}

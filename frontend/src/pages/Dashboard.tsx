@@ -2,7 +2,6 @@ import { useEffect, useEffectEvent } from 'react'
 import { Link } from 'react-router-dom'
 
 import { NormalizedComparisonChart } from '../components/charts/NormalizedComparisonChart'
-import { LocalTrainingQueuePanel } from '../components/training/LocalTrainingQueuePanel'
 import { RecentTrainingResultsPanel } from '../components/training/RecentTrainingResultsPanel'
 import { ExchangeBadge } from '../components/ui/ExchangeBadge'
 import { MarketStatusBadge } from '../components/ui/MarketStatusBadge'
@@ -319,20 +318,6 @@ export default function Dashboard() {
           </div>
         ) : null}
       </section>
-
-      <LocalTrainingQueuePanel
-        runtime={trainingRuntime}
-        loading={trainingReports.isLoading}
-        error={trainingReports.error}
-        hint={trainingReports.hint}
-        onRetry={() => {
-          trainingReports.retry()
-          retrainingStatus.retry()
-        }}
-        title="Shared and per-stock training order"
-        summary="Use this queue to confirm whether the backend is currently building shared ChronoSpectra artifacts or moving through the per-stock refresh list."
-        maxVisibleJobs={4}
-      />
 
       <RecentTrainingResultsPanel
         runtime={trainingRuntime}

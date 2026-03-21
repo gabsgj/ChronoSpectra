@@ -3,12 +3,12 @@
   "version": "1.2.0",
   "model_mode": "both",
   "local_training": {
-    "enabled": true,
+    "enabled": false,
     "auto_place_models": true,
     "_note": "When enabled, FastAPI trains models locally using the training pipeline instead of Colab. Set enabled:true offline to regenerate models, then set false before deploying to production."
   },
   "retrain_on_startup": {
-    "enabled": true,
+    "enabled": false,
     "_note": "When true, FastAPI retrains all stale or missing models on startup. Use offline only. Always set false before pushing to production."
   },
   "exchanges": {
@@ -77,7 +77,7 @@
       "model": {
         "retrain_interval_days": 30,
         "prediction_horizon_days": 5,
-        "training_data_years": 20
+        "training_data_years": 7
       }
     },
     {
@@ -91,7 +91,7 @@
       "model": {
         "retrain_interval_days": 30,
         "prediction_horizon_days": 5,
-        "training_data_years": 20
+        "training_data_years": 7
       }
     },
     {
@@ -105,7 +105,7 @@
       "model": {
         "retrain_interval_days": 30,
         "prediction_horizon_days": 5,
-        "training_data_years": 20
+        "training_data_years": 7
       }
     },
     {
@@ -133,7 +133,7 @@
       "model": {
         "retrain_interval_days": 30,
         "prediction_horizon_days": 5,
-        "training_data_years": 16
+        "training_data_years": 7
       }
     }
   ],

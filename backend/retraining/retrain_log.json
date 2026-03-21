@@ -2039,6 +2039,424 @@
           "RECLTD"
         ]
       }
+    },
+    {
+      "stock_id": "ALL_STOCKS",
+      "timestamp": "2026-03-21T19:36:59.715766Z",
+      "reason": "manual_training",
+      "mode": "unified",
+      "before_mse": 187187.72328343667,
+      "after_mse": 121400.78247820647,
+      "duration_seconds": 525.915,
+      "status": "success",
+      "checkpoint_path": "/app/backend/models/model_store/unified/unified_model.pth",
+      "report_path": "/app/backend/models/model_store/reports/unified_training_report.json",
+      "scaler_paths": {
+        "RELIANCE": "/app/backend/models/model_store/scalers/RELIANCE_scaler.pkl",
+        "LT": "/app/backend/models/model_store/scalers/LT_scaler.pkl",
+        "ADANIENT": "/app/backend/models/model_store/scalers/ADANIENT_scaler.pkl",
+        "HAL": "/app/backend/models/model_store/scalers/HAL_scaler.pkl",
+        "RECLTD": "/app/backend/models/model_store/scalers/RECLTD_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 5148,
+        "val_count": 1103,
+        "test_count": 1104,
+        "train_first": [
+          "2020-04-17T00:00:00",
+          "2020-04-17T00:00:00",
+          "2020-04-17T00:00:00",
+          "2020-04-17T00:00:00",
+          "2020-04-17T00:00:00"
+        ],
+        "train_last": [
+          "2024-06-11T00:00:00",
+          "2024-06-11T00:00:00",
+          "2024-06-12T00:00:00",
+          "2024-06-12T00:00:00",
+          "2024-06-12T00:00:00"
+        ],
+        "test_first": [
+          "2025-05-06T00:00:00",
+          "2025-05-06T00:00:00",
+          "2025-05-06T00:00:00",
+          "2025-05-06T00:00:00",
+          "2025-05-07T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-20T00:00:00",
+          "2026-03-20T00:00:00",
+          "2026-03-20T00:00:00",
+          "2026-03-20T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 1104,
+        "evaluation_scope": "all_active_stocks",
+        "input_shape": [
+          1,
+          65,
+          13
+        ],
+        "stock_count": 5,
+        "stock_ids": [
+          "RELIANCE",
+          "LT",
+          "ADANIENT",
+          "HAL",
+          "RECLTD"
+        ]
+      }
+    },
+    {
+      "stock_id": "ALL_STOCKS",
+      "timestamp": "2026-03-21T19:46:43.707005Z",
+      "reason": "manual_training",
+      "mode": "unified_with_embeddings",
+      "before_mse": null,
+      "after_mse": 137217.496754192,
+      "duration_seconds": 257.774,
+      "status": "success",
+      "checkpoint_path": "/app/backend/models/model_store/unified/unified_with_embeddings_model.pth",
+      "report_path": "/app/backend/models/model_store/reports/unified_with_embeddings_training_report.json",
+      "scaler_paths": {
+        "RELIANCE": "/app/backend/models/model_store/scalers/RELIANCE_scaler.pkl",
+        "LT": "/app/backend/models/model_store/scalers/LT_scaler.pkl",
+        "ADANIENT": "/app/backend/models/model_store/scalers/ADANIENT_scaler.pkl",
+        "HAL": "/app/backend/models/model_store/scalers/HAL_scaler.pkl",
+        "RECLTD": "/app/backend/models/model_store/scalers/RECLTD_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 5148,
+        "val_count": 1103,
+        "test_count": 1104,
+        "train_first": [
+          "2020-04-17T00:00:00",
+          "2020-04-17T00:00:00",
+          "2020-04-17T00:00:00",
+          "2020-04-17T00:00:00",
+          "2020-04-17T00:00:00"
+        ],
+        "train_last": [
+          "2024-06-11T00:00:00",
+          "2024-06-11T00:00:00",
+          "2024-06-12T00:00:00",
+          "2024-06-12T00:00:00",
+          "2024-06-12T00:00:00"
+        ],
+        "test_first": [
+          "2025-05-06T00:00:00",
+          "2025-05-06T00:00:00",
+          "2025-05-06T00:00:00",
+          "2025-05-06T00:00:00",
+          "2025-05-07T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-20T00:00:00",
+          "2026-03-20T00:00:00",
+          "2026-03-20T00:00:00",
+          "2026-03-20T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 1104,
+        "evaluation_scope": "all_active_stocks",
+        "input_shape": [
+          1,
+          65,
+          13
+        ],
+        "stock_count": 5,
+        "stock_ids": [
+          "RELIANCE",
+          "LT",
+          "ADANIENT",
+          "HAL",
+          "RECLTD"
+        ]
+      }
+    },
+    {
+      "stock_id": "RELIANCE",
+      "timestamp": "2026-03-21T19:51:27.386498Z",
+      "reason": "manual_training",
+      "mode": "per_stock",
+      "before_mse": 207062.79150930635,
+      "after_mse": 27036.53346348735,
+      "duration_seconds": 57.791,
+      "status": "success",
+      "checkpoint_path": "/app/backend/models/model_store/per_stock/RELIANCE_model.pth",
+      "report_path": "/app/backend/models/model_store/reports/RELIANCE_training_report.json",
+      "scaler_paths": {
+        "RELIANCE": "/app/backend/models/model_store/scalers/RELIANCE_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 1029,
+        "val_count": 220,
+        "test_count": 222,
+        "train_first": [
+          "2020-04-17T00:00:00",
+          "2020-04-20T00:00:00",
+          "2020-04-21T00:00:00",
+          "2020-04-22T00:00:00",
+          "2020-04-23T00:00:00"
+        ],
+        "train_last": [
+          "2024-06-05T00:00:00",
+          "2024-06-06T00:00:00",
+          "2024-06-07T00:00:00",
+          "2024-06-10T00:00:00",
+          "2024-06-11T00:00:00"
+        ],
+        "test_first": [
+          "2025-05-05T00:00:00",
+          "2025-05-06T00:00:00",
+          "2025-05-07T00:00:00",
+          "2025-05-08T00:00:00",
+          "2025-05-09T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 222,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
+    },
+    {
+      "stock_id": "LT",
+      "timestamp": "2026-03-21T19:52:31.619418Z",
+      "reason": "manual_training",
+      "mode": "per_stock",
+      "before_mse": 222557.15621368794,
+      "after_mse": 103662.48420316035,
+      "duration_seconds": 52.197,
+      "status": "success",
+      "checkpoint_path": "/app/backend/models/model_store/per_stock/LT_model.pth",
+      "report_path": "/app/backend/models/model_store/reports/LT_training_report.json",
+      "scaler_paths": {
+        "LT": "/app/backend/models/model_store/scalers/LT_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 1029,
+        "val_count": 220,
+        "test_count": 222,
+        "train_first": [
+          "2020-04-17T00:00:00",
+          "2020-04-20T00:00:00",
+          "2020-04-21T00:00:00",
+          "2020-04-22T00:00:00",
+          "2020-04-23T00:00:00"
+        ],
+        "train_last": [
+          "2024-06-05T00:00:00",
+          "2024-06-06T00:00:00",
+          "2024-06-07T00:00:00",
+          "2024-06-10T00:00:00",
+          "2024-06-11T00:00:00"
+        ],
+        "test_first": [
+          "2025-05-05T00:00:00",
+          "2025-05-06T00:00:00",
+          "2025-05-07T00:00:00",
+          "2025-05-08T00:00:00",
+          "2025-05-09T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 222,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
+    },
+    {
+      "stock_id": "ADANIENT",
+      "timestamp": "2026-03-21T19:53:30.436573Z",
+      "reason": "manual_training",
+      "mode": "per_stock",
+      "before_mse": 6495142.539178168,
+      "after_mse": 347320.6126180535,
+      "duration_seconds": 70.18,
+      "status": "success",
+      "checkpoint_path": "/app/backend/models/model_store/per_stock/ADANIENT_model.pth",
+      "report_path": "/app/backend/models/model_store/reports/ADANIENT_training_report.json",
+      "scaler_paths": {
+        "ADANIENT": "/app/backend/models/model_store/scalers/ADANIENT_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 1029,
+        "val_count": 220,
+        "test_count": 222,
+        "train_first": [
+          "2020-04-17T00:00:00",
+          "2020-04-20T00:00:00",
+          "2020-04-21T00:00:00",
+          "2020-04-22T00:00:00",
+          "2020-04-23T00:00:00"
+        ],
+        "train_last": [
+          "2024-06-05T00:00:00",
+          "2024-06-06T00:00:00",
+          "2024-06-07T00:00:00",
+          "2024-06-10T00:00:00",
+          "2024-06-11T00:00:00"
+        ],
+        "test_first": [
+          "2025-05-05T00:00:00",
+          "2025-05-06T00:00:00",
+          "2025-05-07T00:00:00",
+          "2025-05-08T00:00:00",
+          "2025-05-09T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 222,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
+    },
+    {
+      "stock_id": "HAL",
+      "timestamp": "2026-03-21T19:54:47.076242Z",
+      "reason": "manual_training",
+      "mode": "per_stock",
+      "before_mse": 9223341.440111361,
+      "after_mse": 6376475.716187387,
+      "duration_seconds": 51.732,
+      "status": "success",
+      "checkpoint_path": "/app/backend/models/model_store/per_stock/HAL_model.pth",
+      "report_path": "/app/backend/models/model_store/reports/HAL_training_report.json",
+      "scaler_paths": {
+        "HAL": "/app/backend/models/model_store/scalers/HAL_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 1029,
+        "val_count": 220,
+        "test_count": 222,
+        "train_first": [
+          "2020-04-17T00:00:00",
+          "2020-04-20T00:00:00",
+          "2020-04-21T00:00:00",
+          "2020-04-22T00:00:00",
+          "2020-04-23T00:00:00"
+        ],
+        "train_last": [
+          "2024-06-05T00:00:00",
+          "2024-06-06T00:00:00",
+          "2024-06-07T00:00:00",
+          "2024-06-10T00:00:00",
+          "2024-06-11T00:00:00"
+        ],
+        "test_first": [
+          "2025-05-05T00:00:00",
+          "2025-05-06T00:00:00",
+          "2025-05-07T00:00:00",
+          "2025-05-08T00:00:00",
+          "2025-05-09T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 222,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
+    },
+    {
+      "stock_id": "RECLTD",
+      "timestamp": "2026-03-21T19:55:45.440476Z",
+      "reason": "manual_training",
+      "mode": "per_stock",
+      "before_mse": 2825.3282568631757,
+      "after_mse": 5671.026997386436,
+      "duration_seconds": 58.638,
+      "status": "success",
+      "checkpoint_path": "/app/backend/models/model_store/per_stock/RECLTD_model.pth",
+      "report_path": "/app/backend/models/model_store/reports/RECLTD_training_report.json",
+      "scaler_paths": {
+        "RECLTD": "/app/backend/models/model_store/scalers/RECLTD_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 1029,
+        "val_count": 220,
+        "test_count": 222,
+        "train_first": [
+          "2020-04-17T00:00:00",
+          "2020-04-20T00:00:00",
+          "2020-04-21T00:00:00",
+          "2020-04-22T00:00:00",
+          "2020-04-23T00:00:00"
+        ],
+        "train_last": [
+          "2024-06-05T00:00:00",
+          "2024-06-06T00:00:00",
+          "2024-06-07T00:00:00",
+          "2024-06-10T00:00:00",
+          "2024-06-11T00:00:00"
+        ],
+        "test_first": [
+          "2025-05-05T00:00:00",
+          "2025-05-06T00:00:00",
+          "2025-05-07T00:00:00",
+          "2025-05-08T00:00:00",
+          "2025-05-09T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 222,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
     }
   ]
 }

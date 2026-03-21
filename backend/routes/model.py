@@ -34,6 +34,7 @@ MODEL_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     422: {"model": APIErrorResponse},
     503: {"model": APIErrorResponse},
 }
+SUPPORTED_VARIANT_MODES = {"per_stock", "unified", "unified_with_embeddings"}
 
 
 @router.post(
@@ -41,11 +42,15 @@ MODEL_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     response_model=PredictionResponse,
     responses=MODEL_ERROR_RESPONSES,
 )
-def predict(stock_id: str, request: Request) -> PredictionResponse:
+def predict(
+    stock_id: str,
+    request: Request,
+    mode: str | None = Query(None),
+) -> PredictionResponse:
     stock = require_stock(request, stock_id)
     registry = ModelRegistry(request.app.state.config)
     configured_mode = registry.get_prediction_mode()
-    load_result = resolve_prediction_load_result(registry, stock_id)
+    load_result = resolve_prediction_load_result(registry, stock_id, mode)
     if not load_result.is_available or load_result.model is None:
         raise_model_not_trained_error(stock_id, load_result)
     scaler = load_scaler_or_error(registry, stock_id)
@@ -178,7 +183,23 @@ def backtest(
     )
 
 
-def resolve_prediction_load_result(registry: ModelRegistry, stock_id: str) -> ModelLoadResult:
+def resolve_prediction_load_result(
+    registry: ModelRegistry,
+    stock_id: str,
+    requested_mode: str | None,
+) -> ModelLoadResult:
+    if requested_mode:
+        normalized_mode = requested_mode.strip().lower()
+        if normalized_mode not in SUPPORTED_VARIANT_MODES:
+            supported_values = ", ".join(sorted(SUPPORTED_VARIANT_MODES))
+            raise_structured_http_error(
+                422,
+                "invalid_model_mode",
+                f"Unsupported model mode '{requested_mode}'.",
+                hint=f"Use one of: {supported_values}.",
+            )
+        return registry.load_model(normalized_mode, stock_id)
+
     configured_result = registry.load_prediction_model(stock_id)
     if configured_result.is_available:
         return configured_result

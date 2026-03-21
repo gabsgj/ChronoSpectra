@@ -11,8 +11,27 @@ import { PageGuide } from '../components/ui/PageGuide'
 import { defaultStockId, getStockById } from '../config/stocksConfig'
 import { useLiveMarket } from '../hooks/useLiveMarket'
 import { useMarketStatus } from '../hooks/useMarketStatus'
+import { useModelBacktest } from '../hooks/useModelBacktest'
 import { usePrediction } from '../hooks/usePrediction'
-import type { LiveConnectionState, ThemeMode } from '../types'
+import type {
+  LiveConnectionState,
+  LivePredictionPoint,
+  ThemeMode,
+  VariantModelMode,
+} from '../types'
+
+const LIVE_MODE_OPTIONS: VariantModelMode[] = [
+  'per_stock',
+  'unified',
+  'unified_with_embeddings',
+]
+
+const isVariantModelMode = (value: string | null): value is VariantModelMode => {
+  if (!value) {
+    return false
+  }
+  return LIVE_MODE_OPTIONS.includes(value as VariantModelMode)
+}
 
 const formatCurrency = (value: number | null) => {
   if (value === null) {
@@ -58,6 +77,29 @@ const resolveSessionKey = (timestamp: string) => {
   ].join('-')
 }
 
+const toLivePredictionPoint = (
+  point: {
+    actual: number
+    market_open: boolean
+    predicted: number
+    prediction_horizon_days?: number | null
+    prediction_mode: string
+    prediction_target_at?: string | null
+    timestamp: string
+  },
+): LivePredictionPoint => {
+  return {
+    actual: point.actual,
+    market_open: point.market_open,
+    predicted: point.predicted,
+    prediction_horizon_days: point.prediction_horizon_days ?? null,
+    prediction_mode: point.prediction_mode,
+    prediction_target_at: point.prediction_target_at ?? null,
+    spread: point.predicted - point.actual,
+    timestamp: point.timestamp,
+  }
+}
+
 const resolveConnectionBadge = (
   connectionState: LiveConnectionState,
   marketOpen: boolean,
@@ -99,6 +141,9 @@ const resolveConnectionBadge = (
 export default function LiveTesting() {
   const [searchParams, setSearchParams] = useSearchParams()
   const selectedStockId = searchParams.get('stock') ?? defaultStockId
+  const selectedMode = isVariantModelMode(searchParams.get('mode'))
+    ? (searchParams.get('mode') as VariantModelMode)
+    : null
   const stock = getStockById(selectedStockId) ?? getStockById(defaultStockId)
 
   if (!stock) {
@@ -118,7 +163,21 @@ export default function LiveTesting() {
       stock={stock}
       setStockId={(stockId) => {
         startTransition(() => {
+          if (selectedMode) {
+            setSearchParams({ stock: stockId, mode: selectedMode })
+            return
+          }
           setSearchParams({ stock: stockId })
+        })
+      }}
+      selectedMode={selectedMode}
+      setMode={(mode) => {
+        startTransition(() => {
+          if (mode) {
+            setSearchParams({ stock: stock.id, mode })
+            return
+          }
+          setSearchParams({ stock: stock.id })
         })
       }}
     />
@@ -128,16 +187,21 @@ export default function LiveTesting() {
 interface LiveTestingContentProps {
   stock: NonNullable<ReturnType<typeof getStockById>>
   setStockId: (stockId: string) => void
+  selectedMode: VariantModelMode | null
+  setMode: (mode: VariantModelMode | null) => void
 }
 
 const LiveTestingContent = ({
   stock,
   setStockId,
+  selectedMode,
+  setMode,
 }: LiveTestingContentProps) => {
   const [currentTimestamp, setCurrentTimestamp] = useState(() => Date.now())
   const theme = resolveTheme()
   const marketStatus = useMarketStatus(stock.exchange)
-  const liveMarket = useLiveMarket(stock.id)
+  const liveMarket = useLiveMarket(stock.id, selectedMode)
+  const backtest = useModelBacktest(stock.id, 90)
   const predictionMetrics = usePrediction(liveMarket.history)
   const effectiveMarketOpen =
     liveMarket.snapshot?.market_open ?? marketStatus.data?.market_open ?? false
@@ -157,12 +221,6 @@ const LiveTestingContent = ({
     liveMarket.snapshot?.live_data_provider ??
     marketStatus.data?.live_data_provider ??
     'yfinance'
-  const combinedError = liveMarket.error ?? marketStatus.error
-  const combinedHint = marketStatus.hint
-  const isChartLoading =
-    liveMarket.snapshot === null &&
-    (liveMarket.connectionState === 'connecting' ||
-      marketStatus.isLoading)
 
   useEffect(() => {
     if (!nextOpenAt) {
@@ -218,6 +276,52 @@ const LiveTestingContent = ({
 
     return sessionPoints.length > 0 ? sessionPoints : liveMarket.history
   }, [effectiveMarketOpen, liveMarket.history])
+  const needsBacktestFallback = !effectiveMarketOpen && chartHistory.length < 3
+
+  const backtestOverlayHistory = useMemo<LivePredictionPoint[]>(() => {
+    return (backtest.data?.points ?? []).map((point) => {
+      return toLivePredictionPoint({
+        actual: point.actual_price,
+        market_open: true,
+        predicted: point.predicted_price,
+        prediction_horizon_days: latestPredictionHorizon,
+        prediction_mode: 'backtest',
+        prediction_target_at: null,
+        timestamp: point.timestamp,
+      })
+    })
+  }, [backtest.data?.points, latestPredictionHorizon])
+
+  const overlayPoints = useMemo(() => {
+    if (effectiveMarketOpen) {
+      return chartHistory
+    }
+    if (chartHistory.length >= 3) {
+      return chartHistory
+    }
+    if (backtestOverlayHistory.length > 0) {
+      return backtestOverlayHistory
+    }
+    return chartHistory
+  }, [backtestOverlayHistory, chartHistory, effectiveMarketOpen])
+
+  const overlayLatestPoint = useMemo(() => {
+    if (liveMarket.snapshot) {
+      return toLivePredictionPoint(liveMarket.snapshot)
+    }
+    return overlayPoints.at(-1) ?? null
+  }, [liveMarket.snapshot, overlayPoints])
+
+  const combinedError =
+    liveMarket.error ??
+    marketStatus.error ??
+    (needsBacktestFallback ? backtest.error : null)
+  const combinedHint =
+    marketStatus.hint ?? (needsBacktestFallback ? backtest.hint : null)
+  const isChartLoading =
+    (liveMarket.snapshot === null &&
+      (liveMarket.connectionState === 'connecting' || marketStatus.isLoading)) ||
+    (needsBacktestFallback && backtest.isLoading)
 
   return (
     <div className="space-y-8">
@@ -241,7 +345,10 @@ const LiveTestingContent = ({
           </div>
           <div className="space-y-2 text-right text-sm text-muted">
             <p>Provider: {latestProvider}</p>
-            <p>Prediction mode: {latestPredictionMode}</p>
+            <p>
+              Prediction mode:{' '}
+              {selectedMode ? `${selectedMode} (forced)` : latestPredictionMode}
+            </p>
             <p>
               {liveMarket.connectionState === 'reconnecting'
                 ? `Reconnect attempt ${liveMarket.reconnectAttempt}/3`
@@ -254,6 +361,38 @@ const LiveTestingContent = ({
           activeStockId={stock.id}
           onSelect={setStockId}
         />
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+            Live mode
+          </span>
+          <button
+            type="button"
+            onClick={() => setMode(null)}
+            className={[
+              'rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] transition',
+              selectedMode === null
+                ? 'border-teal/35 bg-teal/10 text-teal'
+                : 'border-stroke/70 text-muted hover:border-teal/30 hover:text-teal',
+            ].join(' ')}
+          >
+            Auto
+          </button>
+          {LIVE_MODE_OPTIONS.map((modeOption) => (
+            <button
+              key={modeOption}
+              type="button"
+              onClick={() => setMode(modeOption)}
+              className={[
+                'rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] transition',
+                selectedMode === modeOption
+                  ? 'border-teal/35 bg-teal/10 text-teal'
+                  : 'border-stroke/70 text-muted hover:border-teal/30 hover:text-teal',
+              ].join(' ')}
+            >
+              {modeOption}
+            </button>
+          ))}
+        </div>
         <PageGuide
           title="How to use the live workspace"
           summary="This page is for monitoring the newest actual-versus-predicted readings. It keeps the main numbers, chart, and table in one place so you can read them in order."
@@ -363,8 +502,8 @@ const LiveTestingContent = ({
       </section>
 
       <LivePredictionChart
-        points={chartHistory}
-        latestPoint={liveMarket.history.at(-1) ?? null}
+        points={overlayPoints}
+        latestPoint={overlayLatestPoint}
         loading={isChartLoading}
         error={combinedError}
         hint={combinedHint}

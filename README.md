@@ -1,30 +1,32 @@
 # ChronoSpectra
 
-ChronoSpectra is a config-driven financial time-series forecasting platform with a FastAPI backend, a React frontend, signal-processing visualizations, CNN-based prediction workflows, live monitoring, and retraining support.
+ChronoSpectra is a configuration-driven financial time-series forecasting platform with a FastAPI backend and a React frontend. It provides end-to-end workflows for market data ingestion, signal transforms, CNN-based forecasting, model comparison, live monitoring, and optional retraining.
 
-## What This Repo Includes
+## Key Capabilities
 
-- A FastAPI backend for market data, signal processing, model inference, training orchestration, retraining, notebook generation, and SSE streams
-- A React + TypeScript frontend with dashboard, stock detail, signal analysis, model comparison, live testing, explainer, and training pages
-- A shared `stocks.json` configuration file that drives both services
-- A Colab-friendly training notebook generator plus optional local training/retraining paths
-- A CPU-only local runtime path so local inference does not need CUDA or NVIDIA wheels
+- Shared app configuration through a single `stocks.json` file.
+- Multi-source market context (stock, index, and FX context where configured).
+- Signal-analysis workflows using FFT, STFT, CWT, and HHT.
+- Model variants: `per_stock`, `unified`, and `unified_with_embeddings`.
+- Live testing with streaming updates and closed-market fallback behavior.
+- Local training/retraining orchestration and report-driven model evaluation.
+- Notebook generation for external/Colab training workflows.
 
 ## Quick Start
 
-### Option 1: Docker Compose
+### Option A: Docker Compose
 
 ```bash
 docker compose up --build
 ```
 
-Services:
+Default local endpoints:
 
 - Frontend: `http://localhost:5173`
 - Backend API: `http://localhost:8000`
-- Backend docs: `http://localhost:8000/docs`
+- Backend OpenAPI docs: `http://localhost:8000/docs`
 
-### Option 2: Run Services Manually
+### Option B: Manual Run
 
 Backend:
 
@@ -42,70 +44,131 @@ npm install
 npm run dev
 ```
 
-## Local Runtime vs Colab Training
+## Training Workflows
 
-If you train models in Google Colab, you do not need local CUDA or `nvidia_*` wheel packages.
+ChronoSpectra supports two practical training patterns.
 
-What you do still need locally:
+### Colab-first training (recommended)
 
-- `torch` for backend checkpoint loading and inference
+- Generate and run notebooks for training in Google Colab.
+- Export model artifacts back to this repository structure.
+- Keep local runtime lightweight for inference and UI operations.
 
-What this repo already does for local development:
+Why this is recommended:
 
-- `backend/requirements.runtime.txt` installs `torch==2.10.0+cpu`
-- `docker-compose.yml` uses that CPU-only runtime file for the backend service
+- GPU-heavy training is better suited to Colab/external compute.
+- Local app usage remains stable without CUDA/NVIDIA dependency complexity.
 
-Use `backend/requirements.txt` only when you want the broader full environment. Use `backend/requirements.runtime.txt` for normal local app runtime.
+### Local training (offline regeneration)
 
-## Main Features
+- Enable local training in `stocks.json` using `local_training.enabled` when you explicitly want backend-managed local training.
+- Disable it again for normal runtime usage once artifacts are generated.
 
-- Config-driven stock universe and exchange settings from `stocks.json`
-- Historical OHLCV, fundamentals, market index, and USD-INR ingestion
-- FFT, STFT, CWT, and HHT signal-processing workflows
-- Per-stock, unified, and unified-with-embeddings CNN model modes
-- A `How It Works` page with the CNN architecture diagram drawn from the actual backend model layers
-- Generated Colab notebooks for training
-- Local training and retraining endpoints
-- Live prediction monitoring with market-status handling
-- Beginner-friendly frontend with page guides, hover hints, and graph-first layouts
+### Startup retraining
+
+- `retrain_on_startup.enabled` triggers stale-or-missing model refresh on backend startup.
+- If both startup flags are `true`, local training takes precedence.
+
+## Model Modes
+
+Supported modes:
+
+- `per_stock`: dedicated checkpoint per stock.
+- `unified`: one shared checkpoint across stocks.
+- `unified_with_embeddings`: shared checkpoint with stock identity embeddings.
+- `both`: comparison-oriented config mode that exposes multiple variants.
+
+Prediction behavior notes:
+
+- The configured prediction mode is read from `stocks.json`.
+- Live Testing supports explicit mode override in the UI.
+- Forced mode requires artifacts for that specific mode; unavailable artifacts produce a clear backend error.
+
+## Tech Stack
+
+- Backend: FastAPI, NumPy, pandas, SciPy, PyWavelets, EMD-signal, PyTorch.
+- Frontend: React, TypeScript, Vite, D3, Tailwind CSS.
+- Runtime orchestration: Docker Compose (optional, recommended for local setup).
+
+## Repository Structure
+
+```text
+StockCNN/
+|- backend/
+|  |- data/
+|  |- models/
+|  |- routes/
+|  |- retraining/
+|  |- signal_processing/
+|  |- training/
+|  |- main.py
+|  |- requirements.runtime.txt
+|  |- requirements.txt
+|- frontend/
+|  |- src/
+|  |- package.json
+|- docker-compose.yml
+|- stocks.json
+|- API_REFERENCE.md
+|- README.md
+```
+
+## Prerequisites
+
+- Python 3.12
+- Node.js 22+
+- npm 10+
+- Docker Desktop (optional)
 
 ## Configuration
 
-The project reads environment values from:
+### Environment Variables
 
-- root `.env`
-- `backend/.env`
-- `frontend/.env`
+Runtime values may be loaded from root `.env`, `backend/.env`, and `frontend/.env`.
 
 Common variables:
 
-| Variable | Purpose | Default |
+| Variable | Purpose | Typical value |
 |---|---|---|
-| `BACKEND_URL` | backend base URL | `http://localhost:8000` |
-| `FRONTEND_URL` | allowed frontend origin(s) for CORS | `http://localhost:5173` |
-| `VITE_BACKEND_URL` | frontend API base URL | `http://localhost:8000` |
-| `APP_ENV` | backend environment label | `development` |
-| `LOG_LEVEL` | backend log level | `INFO` |
-| `ZERODHA_API_KEY` | Zerodha integration stub credential | empty |
-| `ZERODHA_ACCESS_TOKEN` | Zerodha integration stub credential | empty |
-| `ANGEL_ONE_API_KEY` | Angel One integration stub credential | empty |
-| `ANGEL_ONE_CLIENT_ID` | Angel One integration stub credential | empty |
-| `ANGEL_ONE_PASSWORD` | Angel One integration stub credential | empty |
-| `ANGEL_ONE_TOTP_SECRET` | Angel One integration stub credential | empty |
+| `BACKEND_URL` | Backend base URL | `http://localhost:8000` |
+| `FRONTEND_URL` | Allowed frontend origins for CORS | `http://localhost:5173` |
+| `VITE_BACKEND_URL` | Frontend API base URL | `http://localhost:8000` |
+| `APP_ENV` | Backend environment label | `development` |
+| `LOG_LEVEL` | Backend log level | `INFO` |
 
-Shared application behavior lives in `stocks.json`, including:
+### `stocks.json`
 
-- enabled stocks
-- exchanges and market hours
-- signal-processing defaults
-- training hyperparameters
-- retraining policy
-- startup training flags
-- per-stock chart colors
+`stocks.json` is the primary control plane for application behavior:
 
-## Verification Commands
+- Global model mode and startup behavior.
+- Exchange and market-hours metadata.
+- Active stock universe and per-stock forecast horizon.
+- Signal processing defaults (including STFT settings).
+- Training and retraining policies.
 
-Frontend:
+## Runtime Profiles
+
+- `backend/requirements.runtime.txt`: preferred local runtime dependency set (CPU-only PyTorch path).
+- `backend/requirements.txt`: broader dependency set for extended development/training scenarios.
+
+For standard local app execution, use `requirements.runtime.txt`.
+
+## Artifacts and Storage
+
+Model and retraining outputs are written under backend storage paths such as:
+
+- `backend/models/model_store/per_stock/`
+- `backend/models/model_store/unified/`
+- `backend/models/model_store/scalers/`
+- `backend/models/model_store/reports/`
+- `backend/retraining/prediction_history/`
+- `backend/retraining/retrain_log.json`
+
+These artifacts back model predict/compare/backtest routes and live fallback behavior.
+
+## Development Commands
+
+Frontend checks:
 
 ```bash
 cd frontend
@@ -114,30 +177,47 @@ npm run lint
 npm run build
 ```
 
-Backend:
+Backend syntax sanity check:
 
 ```bash
 cd d:/StockCNN
 python -m compileall backend
 ```
 
-Optional browser coverage:
+Optional browser E2E tests:
 
 ```bash
 cd frontend
 npm run test:e2e
 ```
 
-## Documentation
+## API Reference
 
-- [`DOCUMENTATION.md`](./DOCUMENTATION.md): full project manual, setup guide, configuration guide, user flow, artifacts, and troubleshooting
-- [`API_REFERENCE.md`](./API_REFERENCE.md): backend route reference, parameters, response behavior, and SSE notes
-- [`ARCHITECTURE.md`](./ARCHITECTURE.md): architecture decisions and current system design
-- [`ASSIGNMENT_ALIGNMENT.md`](./ASSIGNMENT_ALIGNMENT.md): mapping from assignment requirements to the implemented codebase
-- [`finspectra_spec.md`](./finspectra_spec.md): original project specification
+Detailed API endpoint documentation is available in [API_REFERENCE.md](API_REFERENCE.md).
 
-The in-app CNN architecture diagram lives on the `How It Works` page at `/explainer`.
+## Operational Notes
 
-## Current Status
+- Signal Analysis parameter overrides are for analysis endpoints.
+- Prediction routes use runtime model configuration unless backend prediction logic is explicitly changed.
+- For local runtime, prefer CPU PyTorch via `backend/requirements.runtime.txt`.
+- Use startup training/retraining flags only intentionally, not as always-on defaults.
 
-The main implementation is complete. The one long-standing verification-only gap is checking the live SSE stream during an actual open NSE trading session.
+## Troubleshooting
+
+### Frontend cannot reach backend
+
+- Verify backend is running and reachable on the configured host/port.
+- Check `VITE_BACKEND_URL` in frontend environment.
+- Check backend CORS configuration (`FRONTEND_URL`).
+
+### Live stream errors
+
+- Confirm network reachability to `/live/stream/{stock_id}`.
+- Verify selected model mode has artifacts if mode override is enabled.
+- Check backend logs for model/scaler artifact availability.
+
+### Model unavailable errors
+
+- Ensure trained artifacts exist under `backend/models/model_store/`.
+- If forcing a specific mode, ensure that mode checkpoint exists for requested stock/context.
+

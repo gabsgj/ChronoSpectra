@@ -383,6 +383,8 @@ const ModelComparisonContent = ({
         title="Why a variant may still look unavailable"
         summary="If a shared model card is not available yet, check this queue first. It shows whether the backend is still training the shared variants, has already completed them, or has not reached that job yet."
         maxVisibleJobs={3}
+        collapsible
+        defaultCollapsed
       />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
