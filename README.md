@@ -1,6 +1,6 @@
-# FinSpectra
+# ChronoSpectra
 
-FinSpectra is a config-driven financial time-series forecasting platform with a FastAPI backend, a React frontend, signal-processing visualizations, CNN-based prediction workflows, live monitoring, and retraining support.
+ChronoSpectra is a config-driven financial time-series forecasting platform with a FastAPI backend, a React frontend, signal-processing visualizations, CNN-based prediction workflows, live monitoring, and retraining support.
 
 ## What This Repo Includes
 
@@ -63,6 +63,7 @@ Use `backend/requirements.txt` only when you want the broader full environment. 
 - Historical OHLCV, fundamentals, market index, and USD-INR ingestion
 - FFT, STFT, CWT, and HHT signal-processing workflows
 - Per-stock, unified, and unified-with-embeddings CNN model modes
+- A `How It Works` page with the CNN architecture diagram drawn from the actual backend model layers
 - Generated Colab notebooks for training
 - Local training and retraining endpoints
 - Live prediction monitoring with market-status handling
@@ -134,6 +135,8 @@ npm run test:e2e
 - [`ARCHITECTURE.md`](./ARCHITECTURE.md): architecture decisions and current system design
 - [`ASSIGNMENT_ALIGNMENT.md`](./ASSIGNMENT_ALIGNMENT.md): mapping from assignment requirements to the implemented codebase
 - [`finspectra_spec.md`](./finspectra_spec.md): original project specification
+
+The in-app CNN architecture diagram lives on the `How It Works` page at `/explainer`.
 
 ## Current Status
 

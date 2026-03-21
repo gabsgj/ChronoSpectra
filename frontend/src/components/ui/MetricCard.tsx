@@ -9,7 +9,7 @@ interface MetricCardProps {
 
 export function MetricCard({ label, value, detail, hint }: MetricCardProps) {
   return (
-    <article className="card-surface p-5" title={hint ?? detail}>
+    <article className="card-surface p-5">
       <div className="flex items-center gap-2">
         <p className="eyebrow">{label}</p>
         <HoverHint label={hint ?? detail} />

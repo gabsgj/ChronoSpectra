@@ -1,0 +1,45 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 64 64"
+  fill="none"
+>
+  <rect width="64" height="64" rx="18" fill="#07111B" />
+  <rect x="6" y="6" width="52" height="52" rx="16" fill="url(#panel)" />
+  <circle cx="32" cy="32" r="16" fill="url(#halo)" opacity="0.95" />
+  <path
+    d="M21 39.5C23.7 44.3 27.9 47 33.2 47C41 47 46 40.9 46 33.4C46 25.8 40.8 20 33.2 20C28 20 23.8 22.7 21 27.5"
+    stroke="#F4F7FB"
+    stroke-width="4.6"
+    stroke-linecap="round"
+  />
+  <path
+    d="M25.5 32H39"
+    stroke="#0FC7AE"
+    stroke-width="4.2"
+    stroke-linecap="round"
+  />
+  <path
+    d="M28.5 24.5L36 32L28.5 39.5"
+    stroke="#FFB347"
+    stroke-width="4.2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M17 47H47"
+    stroke="#7E91A8"
+    stroke-opacity="0.55"
+    stroke-width="2.4"
+    stroke-linecap="round"
+  />
+  <defs>
+    <linearGradient id="panel" x1="10" y1="8" x2="54" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#112436" />
+      <stop offset="1" stop-color="#0C1D2D" />
+    </linearGradient>
+    <radialGradient id="halo" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(32 32) rotate(90) scale(16)">
+      <stop stop-color="#143A57" />
+      <stop offset="1" stop-color="#143A57" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+</svg>

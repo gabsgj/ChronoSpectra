@@ -71,7 +71,7 @@ def load_config(path: str | Path) -> ConfigDict:
     raw_config = json.loads(config_path.read_text(encoding="utf-8"))
     if not isinstance(raw_config, dict):
         raise ValueError("stocks.json must contain a top-level JSON object.")
-    raw_config.setdefault("app_name", "FinSpectra")
+    raw_config.setdefault("app_name", "ChronoSpectra")
     raw_config.setdefault("version", "1.2.0")
     raw_config["local_training"] = _merge_defaults(
         DEFAULT_LOCAL_TRAINING,

@@ -10,7 +10,7 @@ def build_notebook_cells(app_config: dict[str, Any], mode: str) -> list[dict[str
     config_json = json.dumps(app_config, indent=2)
     return [
         _markdown_cell(
-            "FinSpectra Training Notebook",
+        "ChronoSpectra Training Notebook",
             (
                 f"This notebook was generated for `{mode}` mode. "
                 "It mirrors the backend model and training architecture so the exported `.pth` "
@@ -78,24 +78,25 @@ def _dependency_install_source() -> str:
 def _config_source(config_json: str, mode: str) -> str:
     config_literal = json.dumps(config_json)
     return f"""
-    import os
-    import json
-    from pathlib import Path
+import os
+import json
+from pathlib import Path
 
-    CONFIG = json.loads({config_literal})
-    ACTIVE_STOCKS = [stock for stock in CONFIG["stocks"] if stock.get("enabled", True)]
-    NOTEBOOK_MODE = "{mode}"
-    SMOKE_MODE = os.environ.get("FINSPECTRA_NOTEBOOK_SMOKE") == "1"
-    if SMOKE_MODE:
-        CONFIG["training"]["epochs"] = 1
-        ACTIVE_STOCKS = ACTIVE_STOCKS[:1]
-    OUTPUT_DIR = Path("finspectra_artifacts")
-    OUTPUT_DIR.mkdir(exist_ok=True)
+CONFIG = json.loads({config_literal})
+ACTIVE_STOCKS = [stock for stock in CONFIG["stocks"] if stock.get("enabled", True)]
+NOTEBOOK_MODE = "{mode}"
+SMOKE_MODE = os.environ.get("FINSPECTRA_NOTEBOOK_SMOKE") == "1"
+if SMOKE_MODE:
+    CONFIG["training"]["epochs"] = 1
+    ACTIVE_STOCKS = ACTIVE_STOCKS[:1]
 
-    print("Notebook mode:", NOTEBOOK_MODE)
-    print("Smoke mode:", SMOKE_MODE)
-    print("Configured app mode:", CONFIG["model_mode"])
-    print("Active stocks:", [stock["id"] for stock in ACTIVE_STOCKS])
+OUTPUT_DIR = Path("chronospectra_artifacts")
+OUTPUT_DIR.mkdir(exist_ok=True)
+
+print("Notebook mode:", NOTEBOOK_MODE)
+print("Smoke mode:", SMOKE_MODE)
+print("Configured app mode:", CONFIG["model_mode"])
+print("Active stocks:", [stock["id"] for stock in ACTIVE_STOCKS])
     """
 
 
@@ -485,24 +486,24 @@ def _run_training_source(mode: str) -> str:
 
 def _drive_export_source() -> str:
     return """
-    import shutil
-    from pathlib import Path
+import shutil
+from pathlib import Path
 
-    try:
-        from google.colab import drive
-    except ImportError:
-        print("google.colab is unavailable outside Colab; skipping Drive export.")
-    else:
-        drive.mount("/content/drive")
-        drive_target = Path("/content/drive/MyDrive/FinSpectraArtifacts")
-        drive_target.mkdir(parents=True, exist_ok=True)
+try:
+    from google.colab import drive
+except ImportError:
+    print("google.colab is unavailable outside Colab; skipping Drive export.")
+else:
+    drive.mount("/content/drive")
+    drive_target = Path("/content/drive/MyDrive/ChronoSpectraArtifacts")
+    drive_target.mkdir(parents=True, exist_ok=True)
 
-        for artifact_path in OUTPUT_DIR.rglob("*"):
-            if artifact_path.is_file():
-                relative_path = artifact_path.relative_to(OUTPUT_DIR)
-                destination_path = drive_target / relative_path
-                destination_path.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(artifact_path, destination_path)
+    for artifact_path in OUTPUT_DIR.rglob("*"):
+        if artifact_path.is_file():
+            relative_path = artifact_path.relative_to(OUTPUT_DIR)
+            destination_path = drive_target / relative_path
+            destination_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(artifact_path, destination_path)
 
-        print("Artifacts copied to", drive_target)
+    print("Artifacts copied to", drive_target)
     """

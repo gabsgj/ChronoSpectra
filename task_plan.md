@@ -4,7 +4,7 @@
 Build FinSpectra phase by phase from the provided prompt and specification, keeping the workspace resumable with up-to-date planning files and verification evidence after each milestone.
 
 ## Current Phase
-Phase 19 documentation refresh complete; only the open-market SSE verification follow-up remains
+Phase 20 UI hardening and training-visibility refinement are complete, including the shared mobile-nav, selector, signal-control, native-tooltip, config-visibility, local-training queue-visibility, cross-page runtime-surface, shell-level runtime-chip, nav-route emphasis, route-aware shell-simplification, shared training-runtime source, shared queue-presentation, and shared recent-results presentation passes. The late-session blockers around shared-mode notebook downloads and the Windows frontend production build are now resolved; the open-market SSE continuity follow-up still remains for a true in-hours browser pass, along with any optional final Playwright rerun against a healthy backend.
 
 ## Phases
 
@@ -65,6 +65,23 @@ Phase 19 documentation refresh complete; only the open-market SSE verification f
 - [x] Add a dedicated `API_REFERENCE.md`
 - [x] Refresh `ARCHITECTURE.md` so it matches the current codebase
 - [x] Verify the new documentation files exist and cross-reference cleanly
+- **Status:** complete
+
+### Phase 20: UI Hardening, Interaction, and Branding Pass
+- [x] Fix the shared config corruption in `stocks.json`
+- [x] Eliminate the duplicate hover-tooltip behavior and reduce shell overflow/clipping
+- [x] Add PNG/CSV/JSON export plus enlarge overlays across the chart-card system
+- [x] Add hover inspection to the major chart families, including comparison, radar, embedding, and overlay views
+- [x] Rework the signal-analysis flow around frequency amplitude first, then time-domain and normalization context
+- [x] Persist live-page history locally so a server reload does not wipe the current browser session
+- [x] Expose the real multi-day prediction horizon and target timestamp in the live flow
+- [x] Rename the runtime-facing product surface to `ChronoSpectra` and refresh the favicon/header branding
+- [x] Tighten the shared mobile nav, stock selectors, and badge/help surfaces to reduce browser-default tooltip overlap
+- [x] Strengthen the signal parameter and theme controls with visible help instead of hidden native-tooltip-only guidance
+- [x] Remove redundant native `title` tooltips from the main page action buttons and links, replacing them with accessible labels where needed
+- [x] Surface the configured training history window in the UI so the current `5 years` value reads as config, not a hardcoded maximum
+- [x] Persist backend/frontend package-manager caches in Docker Compose so repeated local starts do not redownload everything unnecessarily
+- [x] Re-run frontend and backend verification gates after the pass
 - **Status:** complete
 
 ## Key Questions
@@ -192,3 +209,22 @@ Phase 19 documentation refresh complete; only the open-market SSE verification f
 | The first backend env smoke script failed with a local `python.exe` access error when piped through the default interpreter alias | 1 | Re-ran the smoke test using the explicit host Python executable path already known to work in this workspace |
 | The first Playwright rerun reused an already-running service on `http://localhost:5173`, so the dashboard heading assertion failed even though the test wiring itself was correct | 1 | Added `PLAYWRIGHT_BASE_URL=http://127.0.0.1:4173` and `PLAYWRIGHT_API_BASE_URL=http://127.0.0.1:8000` to the shared env files, then reran the suite successfully against the dedicated preview server |
 | The fresh Playwright E2E rerun for the new graph layout failed on the dashboard before chart assertions | 1 | Confirmed the failure was environmental rather than UI-specific: the page snapshot showed backend fetches failing, so the test could not exercise the rendered chart surface in that run |
+
+## Session 29 Debug Notes
+### Root Causes Confirmed
+1. The chart “enlarge” control was behaving like a centered dialog because the shared overlay was constrained and rendered inline rather than through a fullscreen portal.
+2. The frequency-amplitude hover drift came from translating pointer position against the wrapper box instead of the actual SVG plot area and frequency scale.
+3. Stock changes could appear broken because multiple stock-specific hooks preserved the previous stock payload while a new stock request was pending or failed.
+4. The transform selector looked cramped because it was forced into a side-by-side split too early and each card carried too much high-emphasis text for the available width.
+
+### Fixes Applied
+1. Converted the shared chart launcher to a fullscreen icon and rewired the overlay to a body portal with a true fullscreen layout.
+2. Reworked frequency-spectrum hover selection to derive the hovered bucket from SVG-relative coordinates and nearest frequency midpoint.
+3. Updated stock-specific data hooks to clear stale cross-stock payloads, while still preserving same-stock refresh behavior.
+4. Added explicit stock-key remounts for `StockDetail` and `SignalAnalysis`, relaxed the signal page split breakpoint to `2xl`, and redesigned the transform selector cards.
+5. Replaced the favicon with a new ChronoSpectra SVG mark.
+
+### Verification
+1. `npm run type-check` passed.
+2. `npm run lint` passed.
+3. `npm run build` passed.

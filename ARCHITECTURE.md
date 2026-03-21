@@ -1,10 +1,10 @@
-# FinSpectra Architecture
+# ChronoSpectra Architecture
 
-This document describes the current architecture of FinSpectra and records the key design decisions that shape the codebase today.
+This document describes the current architecture of ChronoSpectra and records the key design decisions that shape the codebase today.
 
 ## 1. Current System Shape
 
-FinSpectra is a two-service application with a shared configuration spine:
+ChronoSpectra is a two-service application with a shared configuration spine:
 
 - FastAPI backend
 - React + TypeScript frontend

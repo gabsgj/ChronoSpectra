@@ -32,6 +32,8 @@ import {
 } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
+import { appConfig } from '../config/stocksConfig'
+import { CNNArchitectureDiagram } from '../components/visualizations/CNNArchitectureDiagram'
 import { CNNForwardPassAnim } from '../components/visualizations/CNNForwardPassAnim'
 import { DataFlowAnim } from '../components/visualizations/DataFlowAnim'
 import {
@@ -179,7 +181,8 @@ const HowItWorksContent = ({
             <h2 className="text-3xl text-ink">{stock.display_name}</h2>
             <p className="max-w-3xl text-sm leading-7 text-muted">
               Step through how a rolling price window becomes an FFT column, a
-              spectrogram slice, and a model forecast.
+              frequency-amplitude view, a spectrogram slice, and finally a
+              model forecast.
             </p>
           </div>
           <div className="space-y-2 text-right text-sm text-muted">
@@ -197,7 +200,7 @@ const HowItWorksContent = ({
                 key={activeStock.id}
                 type="button"
                 onClick={() => setStockId(activeStock.id)}
-                title={`Show the explainer using ${activeStock.id}.`}
+                aria-label={`Show the explainer using ${activeStock.id}.`}
                 className={`rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition ${
                   isActive
                     ? 'border-teal/40 bg-teal/10 text-teal'
@@ -215,11 +218,19 @@ const HowItWorksContent = ({
           summary="This page is built to teach the pipeline visually. You do not need signal-processing background to follow it."
           steps={[
             'Start with Play or Step so every panel advances together from the same frame.',
-            'Read left to right: raw window, FFT column, spectrogram build, CNN stage, then prediction output.',
+            'Read left to right: raw window, FFT amplitude column, spectrogram build, CNN stage, then prediction output.',
             'If the animation feels too fast, slow the speed slider or use Step to move one frame at a time.',
           ]}
           nextHref={`/live?stock=${stock.id}`}
           nextLabel="Open live view"
+        />
+      </section>
+
+      <section className="card-surface p-6">
+        <CNNArchitectureDiagram
+          mode={appConfig.model_mode}
+          stockCount={activeStocks.length}
+          theme={theme}
         />
       </section>
 
@@ -245,7 +256,7 @@ const HowItWorksContent = ({
                 setPlaybackMode('idle')
               })
             }}
-            title="Jump back to the first frame."
+            aria-label="Jump back to the first frame."
             className={`${buttonClassName} border-stroke/70 text-ink hover:border-teal/25 hover:text-teal`}
           >
             Rewind
@@ -265,7 +276,7 @@ const HowItWorksContent = ({
                 setPlaybackMode('playing')
               })
             }}
-            title={playbackMode === 'playing' ? 'Pause the shared animation.' : 'Play the shared animation.'}
+            aria-label={playbackMode === 'playing' ? 'Pause the shared animation.' : 'Play the shared animation.'}
             className={`${buttonClassName} ${
               !autoplayEnabled || frameCount === 0
                 ? 'cursor-not-allowed border-stroke/70 text-muted'
@@ -282,7 +293,7 @@ const HowItWorksContent = ({
                 setPlaybackMode('stepping')
               })
             }}
-            title="Advance exactly one frame."
+            aria-label="Advance exactly one frame."
             className={`${buttonClassName} ${
               frameCount === 0
                 ? 'cursor-not-allowed border-stroke/70 text-muted'
@@ -303,8 +314,8 @@ const HowItWorksContent = ({
               onChange={(event) => {
                 setSpeedMultiplier(Number(event.currentTarget.value))
               }}
-              title="Adjust how quickly the shared explainer animation advances."
-              className="h-2 flex-1 accent-teal"
+              aria-label="Adjust how quickly the shared explainer animation advances."
+              className="slider-control flex-1"
             />
             <span>{speedMultiplier.toFixed(2)}x</span>
           </label>
@@ -321,7 +332,6 @@ const HowItWorksContent = ({
                   setPlaybackMode('paused')
                 })
               }}
-              title={`Jump directly to frame ${stop + 1}.`}
               className={`h-3.5 w-3.5 rounded-full transition ${
                 stop <= currentFrame ? 'bg-teal' : 'bg-stroke'
               }`}
@@ -348,7 +358,7 @@ const HowItWorksContent = ({
           <button
             type="button"
             onClick={framesQuery.retry}
-            title="Retry loading the explainer frame data."
+            aria-label="Retry loading the explainer frame data."
             className="rounded-full border border-teal/35 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-teal transition hover:bg-teal/10"
           >
             Retry
@@ -389,8 +399,8 @@ const HowItWorksContent = ({
 
         <ExplainerPanel
           eyebrow="Panel 3"
-          title="STFT Computation"
-          detail="Every window becomes one spectral column, so the dominant cycles rise and fall frame by frame."
+          title="STFT Frequency-Amplitude"
+          detail="This is the per-window frequency-amplitude graph. Every local price window becomes one FFT amplitude column, and those columns stack into the spectrogram used by the model."
         >
           <STFTAnim
             frame={activeFrame}

@@ -1,4 +1,4 @@
-import { startTransition, useMemo } from 'react'
+import { startTransition, useEffect, useEffectEvent, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { EmbeddingPlot, type EmbeddingPoint } from '../components/charts/EmbeddingPlot'
@@ -6,6 +6,8 @@ import { ModelComparisonChart } from '../components/charts/ModelComparisonChart'
 import { PredictionOverlayChart } from '../components/charts/PredictionOverlayChart'
 import { RadarMetricsChart } from '../components/charts/RadarMetricsChart'
 import { LiveStockSelector } from '../components/live/LiveStockSelector'
+import { TrackChartCard } from '../components/charts/TrackChartCard'
+import { LocalTrainingQueuePanel } from '../components/training/LocalTrainingQueuePanel'
 import { ExchangeBadge } from '../components/ui/ExchangeBadge'
 import { MetricCard } from '../components/ui/MetricCard'
 import { ModelModeBadge } from '../components/ui/ModelModeBadge'
@@ -16,20 +18,24 @@ import {
   defaultStockId,
   getStockById,
 } from '../config/stocksConfig'
+import { useSharedTrainingReports } from '../contexts/SharedTrainingReportsContext'
 import { useModelBacktest } from '../hooks/useModelBacktest'
 import { useModelComparison } from '../hooks/useModelComparison'
-import { useTrainingReports } from '../hooks/useTrainingReports'
 import type {
   LivePredictionPoint,
   ModelMetricsSummary,
   ModelVariantResponse,
   ThemeMode,
   TrainingReportEntryResponse,
+  TrainingResult,
+  TrainingRuntimeResponse,
 } from '../types'
 
 const resolveTheme = (): ThemeMode => {
   return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
 }
+
+const TRAINING_STATUS_POLL_MS = 15_000
 
 const formatMetric = (
   value: number | null | undefined,
@@ -107,6 +113,108 @@ const buildEmbeddingProjection = (
   }
 }
 
+const findRelevantTrainingResult = (
+  runtime: TrainingRuntimeResponse | null | undefined,
+  mode: ModelVariantResponse['mode'],
+  stockId: string,
+) => {
+  const relevantResults = (runtime?.results ?? []).filter((result) => {
+    if (result.mode !== mode) {
+      return false
+    }
+    if (mode === 'per_stock') {
+      return result.stock_id === stockId
+    }
+    return result.stock_id !== stockId
+  })
+  return relevantResults.at(-1) ?? null
+}
+
+const isVariantQueued = (
+  runtime: TrainingRuntimeResponse | null | undefined,
+  mode: ModelVariantResponse['mode'],
+  stockId: string,
+  latestResult: TrainingResult | null,
+) => {
+  if (!runtime?.is_running) {
+    return false
+  }
+  const isModePlanned = runtime.planned_modes.includes(mode)
+  if (!isModePlanned) {
+    return false
+  }
+  if (latestResult) {
+    return false
+  }
+  if (mode === 'per_stock') {
+    return runtime.job_labels.includes(`${stockId} / per_stock`)
+  }
+  return runtime.job_labels.includes(`All stocks / ${mode}`)
+}
+
+const resolveVariantStatus = ({
+  isAvailable,
+  latestResult,
+  mode,
+  runtime,
+  stockId,
+}: {
+  isAvailable: boolean
+  latestResult: TrainingResult | null
+  mode: ModelVariantResponse['mode']
+  runtime: TrainingRuntimeResponse | null | undefined
+  stockId: string
+}) => {
+  if (isAvailable) {
+    return {
+      detail: 'Saved artifact detected and ready for comparison.',
+      label: 'Available',
+      tone: 'teal' as const,
+    }
+  }
+
+  const isActive =
+    runtime?.is_running &&
+    runtime.active_mode === mode &&
+    (mode !== 'per_stock' || runtime.active_stock_id === stockId)
+
+  if (isActive) {
+    return {
+      detail:
+        runtime?.active_stage_detail ??
+        'This mode is being trained right now. The card will switch to available after the checkpoint and report finish writing.',
+      label: 'Training',
+      tone: 'teal' as const,
+    }
+  }
+
+  if (isVariantQueued(runtime, mode, stockId, latestResult)) {
+    const completedJobs = runtime?.completed_jobs ?? runtime?.completed_stocks ?? 0
+    const totalJobs = runtime?.total_jobs ?? runtime?.total_stocks ?? 0
+    return {
+      detail: `Queued in the current local-training run. Progress is ${completedJobs} of ${totalJobs} jobs complete.`,
+      label: 'Queued',
+      tone: 'amber' as const,
+    }
+  }
+
+  if (latestResult?.status === 'failed') {
+    return {
+      detail:
+        latestResult.error ??
+        'The latest local-training attempt for this mode failed before artifacts were written.',
+      label: 'Failed',
+      tone: 'amber' as const,
+    }
+  }
+
+  return {
+    detail: 'No saved artifact is available for this mode yet.',
+    label: 'Missing',
+    tone: 'amber' as const,
+  }
+}
+
 const VARIANT_EXPLAINERS: Array<{
   detail: string
   mode: ModelVariantResponse['mode']
@@ -173,7 +281,24 @@ const ModelComparisonContent = ({
   const theme = resolveTheme()
   const comparison = useModelComparison(stock.id)
   const backtest = useModelBacktest(stock.id, 90)
-  const reports = useTrainingReports()
+  const reports = useSharedTrainingReports()
+  const trainingRuntime = reports.data?.runtime ?? null
+
+  const refreshComparison = useEffectEvent(() => {
+    comparison.retry()
+  })
+
+  useEffect(() => {
+    if (!trainingRuntime?.is_running) {
+      return
+    }
+
+    const intervalId = window.setInterval(() => {
+      refreshComparison()
+    }, TRAINING_STATUS_POLL_MS)
+
+    return () => window.clearInterval(intervalId)
+  }, [trainingRuntime?.is_running])
 
   const overlayPoints = useMemo(() => {
     return toOverlayPoints(backtest.data?.points ?? [])
@@ -192,9 +317,14 @@ const ModelComparisonContent = ({
       return {
         ...variant,
         liveVariant,
+        latestTrainingResult: findRelevantTrainingResult(
+          trainingRuntime,
+          variant.mode,
+          stock.id,
+        ),
       }
     })
-  }, [comparison.data?.variants])
+  }, [comparison.data?.variants, stock.id, trainingRuntime])
 
   const configuredMode = comparison.data?.configured_prediction_mode ?? appConfig.model_mode
   const backtestMetrics = backtest.data?.metrics
@@ -241,6 +371,20 @@ const ModelComparisonContent = ({
         />
       </section>
 
+      <LocalTrainingQueuePanel
+        runtime={trainingRuntime}
+        loading={reports.isLoading}
+        error={reports.error}
+        hint={reports.hint}
+        onRetry={() => {
+          reports.retry()
+          comparison.retry()
+        }}
+        title="Why a variant may still look unavailable"
+        summary="If a shared model card is not available yet, check this queue first. It shows whether the backend is still training the shared variants, has already completed them, or has not reached that job yet."
+        maxVisibleJobs={3}
+      />
+
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           label="Best Available Mode"
@@ -270,12 +414,20 @@ const ModelComparisonContent = ({
         />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-3">
-        {variantCards.map(({ detail, liveVariant, mode, title }) => {
+      <section className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+        {variantCards.map(
+          ({ detail, latestTrainingResult, liveVariant, mode, title }) => {
           const metrics: ModelMetricsSummary | null | undefined = liveVariant?.metrics
           const isAvailable = liveVariant?.available ?? false
+          const variantStatus = resolveVariantStatus({
+            isAvailable,
+            latestResult: latestTrainingResult,
+            mode,
+            runtime: trainingRuntime,
+            stockId: stock.id,
+          })
           return (
-            <article key={mode} className="card-surface p-6">
+            <article key={mode} className="card-surface min-w-0 p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="eyebrow">Variant</p>
@@ -284,12 +436,12 @@ const ModelComparisonContent = ({
                 <span
                   className={[
                     'inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]',
-                    isAvailable
+                    variantStatus.tone === 'teal'
                       ? 'border-teal/35 bg-teal/10 text-teal'
                       : 'border-amber/35 bg-amber/12 text-amber',
                   ].join(' ')}
                 >
-                  {isAvailable ? 'Available' : 'Missing'}
+                  {variantStatus.label}
                 </span>
               </div>
               <p className="mt-4 text-sm leading-7 text-muted">{detail}</p>
@@ -312,7 +464,7 @@ const ModelComparisonContent = ({
               <p className="mt-4 text-xs leading-6 text-muted">
                 {liveVariant?.report_path
                   ? `Report: ${liveVariant.report_path}`
-                  : liveVariant?.error?.hint ?? 'No saved artifact is available for this mode yet.'}
+                  : variantStatus.detail}
               </p>
             </article>
           )
@@ -338,32 +490,63 @@ const ModelComparisonContent = ({
         />
       </section>
 
-      <section className="card-surface p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="eyebrow">Prediction Overlay</p>
-            <h3 className="mt-3 text-2xl text-ink">Latest saved backtest window</h3>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-muted">
-              This overlay comes from the saved prediction history and lets us
-              compare actual and predicted price movement over the most recent
-              evaluation points for the selected stock.
-            </p>
+      <TrackChartCard
+        title="Prediction Overlay"
+        detail="This overlay comes from saved backtest history. It compares actual and predicted closes over recent evaluation points, so you can see where the error metrics came from instead of treating them as abstract scores."
+        loading={backtest.isLoading}
+        empty={overlayPoints.length === 0}
+        error={backtest.error}
+        hint={backtest.hint}
+        onRetry={backtest.retry}
+        downloadFileBase="model-backtest-overlay"
+        exportRows={overlayPoints.map((point) => ({
+          actual: Number(point.actual.toFixed(4)),
+          predicted: Number(point.predicted.toFixed(4)),
+          prediction_mode: point.prediction_mode,
+          spread: Number(point.spread.toFixed(4)),
+          timestamp: point.timestamp,
+        }))}
+        exportJson={backtest.data}
+        expandedChildren={
+          <PredictionOverlayChart
+            points={overlayPoints}
+            theme={theme}
+            chartHeightClass="h-[28rem]"
+          />
+        }
+        footer={
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted">
+            <span>RMSE {formatMetric(backtestMetrics?.rmse)}</span>
+            <span>MAPE {formatMetric(backtestMetrics?.mape, { suffix: '%' })}</span>
+            <span>{backtest.data?.returned_points ?? 0} saved backtest points</span>
           </div>
-          <div className="rounded-[22px] border border-stroke/70 bg-card/70 px-5 py-4 text-right">
-            <p className="text-xs uppercase tracking-[0.18em] text-muted">RMSE</p>
-            <p className="mt-2 text-2xl font-semibold text-ink">
-              {formatMetric(backtestMetrics?.rmse)}
-            </p>
-            <p className="mt-2 text-xs leading-5 text-muted">
-              MAPE {formatMetric(backtestMetrics?.mape, { suffix: '%' })}
-            </p>
+        }
+      >
+        <div className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-[18px] border border-stroke/70 bg-card/70 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-muted">
+                Recent window
+              </p>
+              <p className="mt-2 text-sm leading-6 text-muted">
+                Hover the chart to inspect exact predicted, actual, and spread
+                values at each saved backtest point.
+              </p>
+            </div>
+            <div className="rounded-[18px] border border-stroke/70 bg-card/70 p-4">
+              <p className="text-xs uppercase tracking-[0.18em] text-muted">
+                What to trust
+              </p>
+              <p className="mt-2 text-sm leading-6 text-muted">
+                Use this view to judge shape, bias, and spread over time. The
+                metric cards above compress the same history into one number.
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className="mt-6">
           <PredictionOverlayChart points={overlayPoints} theme={theme} />
         </div>
-      </section>
+      </TrackChartCard>
 
       <EmbeddingPlot
         points={embeddingProjection.points}

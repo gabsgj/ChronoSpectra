@@ -59,7 +59,7 @@ class NotebookGenerator:
         return "unified_template.ipynb.j2"
 
     def _resolve_output_filename(self, mode: str) -> str:
-        return f"finspectra_{mode}_training.ipynb"
+        return f"chronospectra_{mode}_training.ipynb"
 
     def _build_context(self, mode: str) -> dict[str, Any]:
         return {

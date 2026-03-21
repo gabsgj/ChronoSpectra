@@ -36,6 +36,9 @@ REPORT_STORE_DIR = MODEL_STORE_DIR / "reports"
 RETRAIN_REASON_MANUAL = "manual"
 DEFAULT_CACHE_TTL_SECONDS = 300
 EpochProgressCallback = Callable[[dict[str, Any]], None]
+StatusProgressCallback = Callable[[dict[str, Any]], None]
+SHARED_TRAINING_STOCK_ID = "ALL_STOCKS"
+SUPPORTED_TRAINING_MODES = {"per_stock", "unified", "unified_with_embeddings"}
 
 _FILE_LOCK = RLock()
 _STATUS_LOCK = Lock()
@@ -104,7 +107,21 @@ class RetrainWorker:
         self.cache = cache or DataCache(default_ttl_seconds=DEFAULT_CACHE_TTL_SECONDS)
         self.model_registry = ModelRegistry(app_config)
 
-    def resolve_training_mode(self) -> str:
+    def resolve_training_mode(self, mode_override: str | None = None) -> str:
+        if mode_override is not None:
+            if mode_override not in SUPPORTED_TRAINING_MODES:
+                supported = ", ".join(sorted(SUPPORTED_TRAINING_MODES))
+                raise ValueError(
+                    f"Unsupported training mode '{mode_override}'. Expected one of: {supported}."
+                )
+            configured_modes = self.model_registry.configured_modes()
+            if mode_override not in configured_modes:
+                configured = ", ".join(configured_modes)
+                raise ValueError(
+                    f"Mode '{mode_override}' is not enabled in the current config. "
+                    f"Configured modes: {configured}."
+                )
+            return mode_override
         configured_modes = self.model_registry.configured_modes()
         if "per_stock" in configured_modes:
             return "per_stock"
@@ -122,8 +139,10 @@ class RetrainWorker:
         self,
         reason: str,
         progress_callback: EpochProgressCallback | None = None,
+        status_callback: StatusProgressCallback | None = None,
+        mode_override: str | None = None,
     ) -> dict[str, Any]:
-        resolved_mode = self.resolve_training_mode()
+        resolved_mode = self.resolve_training_mode(mode_override)
         started_at = _utc_now_iso()
         if not _start_active_job(self.stock_id, reason, resolved_mode, started_at):
             raise RetrainingAlreadyRunningError(
@@ -137,6 +156,7 @@ class RetrainWorker:
                 resolved_mode,
                 started_at,
                 progress_callback,
+                status_callback,
             )
             log_entry = {
                 "stock_id": self.stock_id,
@@ -181,9 +201,24 @@ class RetrainWorker:
         mode: str,
         started_at: str,
         progress_callback: EpochProgressCallback | None = None,
+        status_callback: StatusProgressCallback | None = None,
     ) -> RetrainingArtifacts:
+        self._notify_status(
+            status_callback,
+            "building_dataset",
+            f"Preparing {self.stock_id} samples for {mode}.",
+        )
         builder = DatasetBuilder(self.config, self.cache)
         datasets = builder.build(mode, self.stock_id if mode == "per_stock" else None)
+        self._notify_status(
+            status_callback,
+            "training",
+            (
+                f"Dataset ready with {len(datasets.train_dataset)} train, "
+                f"{len(datasets.val_dataset)} validation, and "
+                f"{len(datasets.test_dataset)} test samples."
+            ),
+        )
         model = self._build_model(mode)
         train_loop = TrainLoop(self.config)
         training_run = train_loop.train(
@@ -193,6 +228,11 @@ class RetrainWorker:
             stock_id=self.stock_id if mode == "per_stock" else None,
             progress_callback=self._build_progress_callback(progress_callback, mode),
         )
+        self._notify_status(
+            status_callback,
+            "evaluating",
+            f"Evaluating {self.stock_id} on {len(self._evaluation_dataset(datasets, mode))} samples.",
+        )
         trained_model = self._load_trained_model(mode, training_run.checkpoint_path)
         evaluation_dataset = self._evaluation_dataset(datasets, mode)
         evaluation_report = Evaluator().evaluate_model(
@@ -200,6 +240,11 @@ class RetrainWorker:
             evaluation_dataset,
             datasets.scalers_by_stock,
             batch_size=int(self.config["training"]["batch_size"]),
+        )
+        self._notify_status(
+            status_callback,
+            "writing_artifacts",
+            f"Writing checkpoint, scalers, and report for {self.stock_id}.",
         )
         scaler_paths = self._write_scalers(datasets.scalers_by_stock)
         report_path = self._write_training_report(
@@ -211,6 +256,11 @@ class RetrainWorker:
             scaler_paths,
         )
         self._write_prediction_history(mode, evaluation_report)
+        self._notify_status(
+            status_callback,
+            "completed",
+            f"Artifacts saved for {self.stock_id}.",
+        )
         return RetrainingArtifacts(
             mode=mode,
             checkpoint_path=training_run.checkpoint_path,
@@ -381,11 +431,318 @@ class RetrainWorker:
                 return float(mse)
         return None
 
+    def _notify_status(
+        self,
+        callback: StatusProgressCallback | None,
+        stage: str,
+        detail: str,
+    ) -> None:
+        if callback is None:
+            return
+        callback(
+            {
+                "stock_id": self.stock_id,
+                "stage": stage,
+                "detail": detail,
+            }
+        )
+
     def _latest_successful_retrain(self) -> dict[str, Any] | None:
         for entry in reversed(load_retraining_history()):
             if entry.get("stock_id") == self.stock_id and entry.get("status") == "success":
                 return entry
         return None
+
+
+class SharedTrainingWorker:
+    def __init__(
+        self,
+        app_config: dict[str, Any],
+        cache: DataCache | None = None,
+    ) -> None:
+        self.config = app_config
+        self.cache = cache or DataCache(default_ttl_seconds=DEFAULT_CACHE_TTL_SECONDS)
+        self.model_registry = ModelRegistry(app_config)
+        self.stock_ids = [stock["id"] for stock in app_config["active_stocks"]]
+
+    async def train(
+        self,
+        mode: str,
+        reason: str,
+        progress_callback: EpochProgressCallback | None = None,
+        status_callback: StatusProgressCallback | None = None,
+    ) -> dict[str, Any]:
+        resolved_mode = self._validate_shared_mode(mode)
+        started_at = _utc_now_iso()
+        before_mse = self._load_baseline_mse(resolved_mode)
+        timer_started = perf_counter()
+        try:
+            artifacts = await asyncio.to_thread(
+                self._run_sync_training,
+                resolved_mode,
+                started_at,
+                progress_callback,
+                status_callback,
+            )
+            result = {
+                "stock_id": SHARED_TRAINING_STOCK_ID,
+                "timestamp": started_at,
+                "reason": reason,
+                "mode": resolved_mode,
+                "before_mse": before_mse,
+                "after_mse": artifacts.evaluation_report.mse,
+                "duration_seconds": round(perf_counter() - timer_started, 3),
+                "status": "success",
+                "checkpoint_path": str(artifacts.checkpoint_path),
+                "report_path": str(artifacts.report_path),
+                "scaler_paths": artifacts.scaler_paths,
+                "dataset_summary": artifacts.dataset_summary,
+            }
+        except Exception as exc:
+            result = {
+                "stock_id": SHARED_TRAINING_STOCK_ID,
+                "timestamp": started_at,
+                "reason": reason,
+                "mode": resolved_mode,
+                "before_mse": before_mse,
+                "after_mse": None,
+                "duration_seconds": round(perf_counter() - timer_started, 3),
+                "status": "failed",
+                "error": str(exc),
+            }
+        append_retraining_log(result)
+        if result["status"] != "success":
+            raise RetrainingExecutionError(result.get("error", "Training failed."))
+        return result
+
+    def _validate_shared_mode(self, mode: str) -> str:
+        resolved_mode = mode.lower()
+        if resolved_mode not in {"unified", "unified_with_embeddings"}:
+            raise ValueError(
+                "Shared training supports only 'unified' and 'unified_with_embeddings'."
+            )
+        configured_modes = self.model_registry.configured_modes()
+        if resolved_mode not in configured_modes:
+            configured = ", ".join(configured_modes)
+            raise ValueError(
+                f"Mode '{resolved_mode}' is not enabled in the current config. "
+                f"Configured modes: {configured}."
+            )
+        return resolved_mode
+
+    def _run_sync_training(
+        self,
+        mode: str,
+        started_at: str,
+        progress_callback: EpochProgressCallback | None = None,
+        status_callback: StatusProgressCallback | None = None,
+    ) -> RetrainingArtifacts:
+        self._notify_status(
+            status_callback,
+            mode,
+            "building_dataset",
+            f"Collecting all active stocks for shared mode {mode}.",
+        )
+        builder = DatasetBuilder(self.config, self.cache)
+        datasets = builder.build(mode)
+        self._notify_status(
+            status_callback,
+            mode,
+            "training",
+            (
+                f"Dataset ready with {len(datasets.train_dataset)} train, "
+                f"{len(datasets.val_dataset)} validation, and "
+                f"{len(datasets.test_dataset)} test samples across {len(self.stock_ids)} stocks."
+            ),
+        )
+        model = self._build_model(mode)
+        training_run = TrainLoop(self.config).train(
+            model,
+            datasets,
+            mode,
+            progress_callback=self._build_progress_callback(progress_callback, mode),
+        )
+        self._notify_status(
+            status_callback,
+            mode,
+            "evaluating",
+            f"Evaluating shared mode {mode} on {len(datasets.test_dataset)} samples.",
+        )
+        trained_model = self._load_trained_model(mode, training_run.checkpoint_path)
+        evaluation_dataset = datasets.test_dataset
+        evaluation_report = Evaluator().evaluate_model(
+            trained_model,
+            evaluation_dataset,
+            datasets.scalers_by_stock,
+            batch_size=int(self.config["training"]["batch_size"]),
+        )
+        self._notify_status(
+            status_callback,
+            mode,
+            "writing_artifacts",
+            f"Writing shared checkpoint, scalers, and report for {mode}.",
+        )
+        scaler_paths = self._write_scalers(datasets.scalers_by_stock)
+        report_path = self._write_training_report(
+            mode,
+            started_at,
+            datasets,
+            training_run,
+            evaluation_report,
+            scaler_paths,
+        )
+        self._notify_status(
+            status_callback,
+            mode,
+            "completed",
+            f"Artifacts saved for shared mode {mode}.",
+        )
+        return RetrainingArtifacts(
+            mode=mode,
+            checkpoint_path=training_run.checkpoint_path,
+            report_path=report_path,
+            scaler_paths=scaler_paths,
+            evaluation_report=evaluation_report,
+            training_run=training_run,
+            dataset_summary=self._dataset_summary(datasets, evaluation_dataset),
+        )
+
+    def _build_progress_callback(
+        self,
+        callback: EpochProgressCallback | None,
+        mode: str,
+    ):
+        if callback is None:
+            return None
+
+        def on_epoch(epoch_metrics: Any) -> None:
+            callback(
+                {
+                    "stock_id": SHARED_TRAINING_STOCK_ID,
+                    "mode": mode,
+                    "epoch": int(epoch_metrics.epoch),
+                    "train_loss": float(epoch_metrics.train_loss),
+                    "val_loss": float(epoch_metrics.val_loss),
+                }
+            )
+
+        return on_epoch
+
+    def _build_model(self, mode: str) -> BaseModel:
+        if mode == "unified":
+            return UnifiedCNN()
+        if mode == "unified_with_embeddings":
+            return UnifiedCNNWithEmbeddings(num_stocks=len(self.stock_ids))
+        raise ValueError(f"Unsupported shared training mode '{mode}'.")
+
+    def _load_trained_model(self, mode: str, checkpoint_path: Path) -> BaseModel:
+        model = self._build_model(mode)
+        loaded_artifact = torch.load(checkpoint_path, map_location="cpu")
+        if isinstance(loaded_artifact, dict) and "state_dict" in loaded_artifact:
+            state_dict = loaded_artifact["state_dict"]
+        else:
+            state_dict = loaded_artifact
+        if not isinstance(state_dict, dict):
+            raise ValueError(f"Unsupported checkpoint format in '{checkpoint_path.name}'.")
+        model.load_state_dict(state_dict)
+        model.eval()
+        return model
+
+    def _write_scalers(self, scalers_by_stock: dict[str, ScalingMetadata]) -> dict[str, str]:
+        scaler_paths: dict[str, str] = {}
+        for stock_id, scaler in scalers_by_stock.items():
+            scaler_path = self.model_registry.resolve_scaler_path(stock_id)
+            scaler_path.parent.mkdir(parents=True, exist_ok=True)
+            with scaler_path.open("wb") as handle:
+                pickle.dump(scaler, handle)
+            scaler_paths[stock_id] = str(scaler_path)
+        return scaler_paths
+
+    def _write_training_report(
+        self,
+        mode: str,
+        started_at: str,
+        datasets: DatasetBundle,
+        training_run: TrainingRunResult,
+        evaluation_report: EvaluationReport,
+        scaler_paths: dict[str, str],
+    ) -> Path:
+        report_path = self._report_path(mode)
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_payload = {
+            "stock_id": SHARED_TRAINING_STOCK_ID,
+            "generated_at": started_at,
+            "mode": mode,
+            "baseline_mse": evaluation_report.mse,
+            "best_val_loss": training_run.best_val_loss,
+            "lookback_days": datasets.lookback_days,
+            "prediction_horizon_days": datasets.prediction_horizon_days,
+            "transform_name": datasets.transform_name,
+            "dataset_summary": self._dataset_summary(datasets, datasets.test_dataset),
+            "history": [asdict(epoch_metrics) for epoch_metrics in training_run.history],
+            "metrics": evaluation_report.as_dict(),
+            "artifacts": {
+                "checkpoint_path": str(training_run.checkpoint_path),
+                "report_path": str(report_path),
+                "scaler_paths": scaler_paths,
+            },
+        }
+        _write_json(report_path, report_payload)
+        return report_path
+
+    def _dataset_summary(
+        self,
+        datasets: DatasetBundle,
+        evaluation_dataset: SpectrogramDataset,
+    ) -> dict[str, Any]:
+        summary = datasets.verification_summary()
+        summary.update(
+            {
+                "evaluation_count": len(evaluation_dataset),
+                "evaluation_scope": "all_active_stocks",
+                "input_shape": list(datasets.train_dataset.input_shape),
+                "stock_count": len(self.stock_ids),
+                "stock_ids": list(self.stock_ids),
+            }
+        )
+        return summary
+
+    def _load_baseline_mse(self, mode: str) -> float | None:
+        report = _read_json(self._report_path(mode), {})
+        baseline = report.get("baseline_mse")
+        if isinstance(baseline, (int, float)):
+            return float(baseline)
+        metrics = report.get("metrics")
+        if isinstance(metrics, dict):
+            mse = metrics.get("mse")
+            if isinstance(mse, (int, float)):
+                return float(mse)
+        return None
+
+    def _report_path(self, mode: str) -> Path:
+        if mode == "unified":
+            return REPORT_STORE_DIR / "unified_training_report.json"
+        if mode == "unified_with_embeddings":
+            return REPORT_STORE_DIR / "unified_with_embeddings_training_report.json"
+        raise ValueError(f"Unsupported shared training mode '{mode}'.")
+
+    def _notify_status(
+        self,
+        callback: StatusProgressCallback | None,
+        mode: str,
+        stage: str,
+        detail: str,
+    ) -> None:
+        if callback is None:
+            return
+        callback(
+            {
+                "stock_id": SHARED_TRAINING_STOCK_ID,
+                "mode": mode,
+                "stage": stage,
+                "detail": detail,
+            }
+        )
 
 
 def append_retraining_log(entry: dict[str, Any]) -> None:

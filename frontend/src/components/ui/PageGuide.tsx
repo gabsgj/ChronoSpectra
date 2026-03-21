@@ -34,7 +34,6 @@ export function PageGuide({
           <Link
             to={nextHref}
             className="inline-flex rounded-full border border-teal/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-teal transition hover:bg-teal/10"
-            title={nextLabel}
           >
             {nextLabel}
           </Link>
@@ -46,7 +45,6 @@ export function PageGuide({
           <article
             key={step}
             className="rounded-[20px] border border-stroke/70 bg-card/70 p-4"
-            title={step}
           >
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal">
               Step {index + 1}

@@ -1,6 +1,9 @@
+import { useEffect, useEffectEvent } from 'react'
 import { Link } from 'react-router-dom'
 
 import { NormalizedComparisonChart } from '../components/charts/NormalizedComparisonChart'
+import { LocalTrainingQueuePanel } from '../components/training/LocalTrainingQueuePanel'
+import { RecentTrainingResultsPanel } from '../components/training/RecentTrainingResultsPanel'
 import { ExchangeBadge } from '../components/ui/ExchangeBadge'
 import { MarketStatusBadge } from '../components/ui/MarketStatusBadge'
 import { MetricCard } from '../components/ui/MetricCard'
@@ -14,7 +17,7 @@ import {
 import { useDashboardMarketData } from '../hooks/useDashboardMarketData'
 import { useExchangeStatuses } from '../hooks/useExchangeStatuses'
 import { useRetrainingStatus } from '../hooks/useRetrainingStatus'
-import { useTrainingReports } from '../hooks/useTrainingReports'
+import { useSharedTrainingReports } from '../contexts/SharedTrainingReportsContext'
 import type {
   MarketDataResponse,
   RetrainingStockStatusResponse,
@@ -23,6 +26,8 @@ import type {
   TrackPoint,
   TrainingReportEntryResponse,
 } from '../types'
+
+const TRAINING_RUNTIME_POLL_MS = 15_000
 
 const resolveTheme = (): ThemeMode => {
   return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
@@ -120,7 +125,7 @@ const renderInlineError = (
       <button
         type="button"
         onClick={onRetry}
-        title="Retry this failed data request."
+        aria-label="Retry this failed data request."
         className="mt-4 rounded-full border border-amber/35 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber transition hover:bg-amber/10"
       >
         Retry
@@ -133,8 +138,25 @@ export default function Dashboard() {
   const theme = resolveTheme()
   const marketData = useDashboardMarketData(activeStockIds)
   const exchangeStatuses = useExchangeStatuses(uniqueExchangeIds)
-  const trainingReports = useTrainingReports()
+  const trainingReports = useSharedTrainingReports()
   const retrainingStatus = useRetrainingStatus()
+  const trainingRuntime = trainingReports.data?.runtime ?? null
+
+  const refreshRetrainingStatus = useEffectEvent(() => {
+    retrainingStatus.retry()
+  })
+
+  useEffect(() => {
+    if (!trainingRuntime?.is_running) {
+      return
+    }
+
+    const intervalId = window.setInterval(() => {
+      refreshRetrainingStatus()
+    }, TRAINING_RUNTIME_POLL_MS)
+
+    return () => window.clearInterval(intervalId)
+  }, [trainingRuntime?.is_running])
 
   const reportsByStock = new Map(
     (trainingReports.data?.reports ?? []).map((report) => [report.stock_id, report]),
@@ -189,9 +211,9 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      <section className="card-surface space-y-6 overflow-hidden p-6">
+      <section className="card-surface space-y-6 overflow-visible p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-3">
+          <div className="min-w-0 space-y-3">
             <p className="eyebrow">Dashboard</p>
             <div className="flex flex-wrap items-center gap-3">
               <h2 className="text-3xl text-ink">Market pulse across every active stock</h2>
@@ -203,7 +225,7 @@ export default function Dashboard() {
               ticker.
             </p>
           </div>
-          <div className="space-y-2 text-right text-sm text-muted">
+          <div className="min-w-0 space-y-2 text-right text-sm text-muted">
             <p>Default transform: {appConfig.signal_processing.default_transform.toUpperCase()}</p>
             <p>
               STFT {appConfig.signal_processing.stft.window_length} /{' '}
@@ -261,7 +283,7 @@ export default function Dashboard() {
 
         <PageGuide
           title="Recommended first-time flow"
-          summary="If this is your first time using FinSpectra, start broad on the dashboard, then narrow down into one stock before opening the live, model, or training tools."
+          summary="If this is your first time using ChronoSpectra, start broad on the dashboard, then narrow down into one stock before opening the live, model, or training tools."
           steps={[
             'Use this dashboard to see which stock looks interesting or unhealthy. Check the big normalized chart and the five stock cards first.',
             'Open Stock Detail next to read one stock clearly with larger charts for price, index, FX, revenue, and profit.',
@@ -288,7 +310,7 @@ export default function Dashboard() {
               <button
                 type="button"
                 onClick={retryAll}
-                title="Retry every dashboard data source at once."
+                aria-label="Retry every dashboard data source at once."
                 className="rounded-full border border-amber/35 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber transition hover:bg-amber/10"
               >
                 Retry all
@@ -297,6 +319,28 @@ export default function Dashboard() {
           </div>
         ) : null}
       </section>
+
+      <LocalTrainingQueuePanel
+        runtime={trainingRuntime}
+        loading={trainingReports.isLoading}
+        error={trainingReports.error}
+        hint={trainingReports.hint}
+        onRetry={() => {
+          trainingReports.retry()
+          retrainingStatus.retry()
+        }}
+        title="Shared and per-stock training order"
+        summary="Use this queue to confirm whether the backend is currently building shared ChronoSpectra artifacts or moving through the per-stock refresh list."
+        maxVisibleJobs={4}
+      />
+
+      <RecentTrainingResultsPanel
+        runtime={trainingRuntime}
+        eyebrow="Latest Training Outcomes"
+        title="Most recent completed runtime jobs"
+        summary="These are the newest finished local-training jobs, so you can spot fresh successes or failures from the dashboard before drilling into the training route."
+        maxVisibleResults={3}
+      />
 
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -307,7 +351,7 @@ export default function Dashboard() {
           <button
             type="button"
             onClick={retryAll}
-            title="Refresh the exchange, scheduler, report, and market data sections."
+            aria-label="Refresh the exchange, scheduler, report, and market data sections."
             className="rounded-full border border-stroke/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted transition hover:border-teal/35 hover:text-teal"
           >
             Refresh dashboard
@@ -546,7 +590,7 @@ const StockPulseCard = ({
           <button
             type="button"
             onClick={onRetry}
-            title="Retry the missing stock card data."
+            aria-label="Retry the missing stock card data."
             className="mt-4 rounded-full border border-amber/35 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber transition hover:bg-amber/10"
           >
             Retry
@@ -606,14 +650,14 @@ const StockPulseCard = ({
       <div className="mt-5 flex items-center justify-between gap-3 border-t border-stroke/60 pt-4 text-xs font-semibold uppercase tracking-[0.18em]">
         <Link
           to={`/stock/${stock.id}`}
-          title={`Open detailed charts for ${stock.display_name}.`}
+          aria-label={`Open detailed charts for ${stock.display_name}.`}
           className="text-teal transition hover:text-ink"
         >
           Open detail
         </Link>
         <Link
           to={`/live?stock=${stock.id}`}
-          title={`Open the live monitoring page for ${stock.display_name}.`}
+          aria-label={`Open the live monitoring page for ${stock.display_name}.`}
           className="text-muted transition hover:text-teal"
         >
           Live view

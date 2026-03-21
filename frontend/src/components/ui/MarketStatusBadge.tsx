@@ -16,12 +16,9 @@ export function MarketStatusBadge({
     : 'border-amber/30 bg-amber/12 text-amber'
 
   return (
-    <span
-      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${toneClasses}`}
-      title={hint ?? label}
-    >
+    <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${toneClasses}`}>
       {label}
-      <HoverHint label={hint ?? label} />
+      {hint ? <HoverHint label={hint} /> : null}
     </span>
   )
 }

@@ -280,6 +280,14 @@ export const SpectrogramHeatmap = ({
       error={error}
       hint={hint}
       onRetry={onRetry}
+      downloadFileBase="spectrogram-heatmap"
+      exportRows={cells.map((cell) => ({
+        energy: Number(cell.energy.toFixed(8)),
+        frequency_cycles_per_day: Number(cell.frequencyValue.toFixed(8)),
+        time_days: Number(cell.timeValue.toFixed(8)),
+        timestamp: cell.timeTimestamp,
+      }))}
+      exportJson={data}
       footer={
         sampledData ? (
           <div className="flex flex-wrap items-center justify-between gap-3 text-xs leading-5 text-muted">

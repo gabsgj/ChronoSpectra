@@ -1,10 +1,10 @@
-# FinSpectra Documentation
+# ChronoSpectra Documentation
 
-This document is the main project manual for FinSpectra. It explains what the system does, how the repo is organized, how to run it, how configuration works, how training and retraining fit together, and how to troubleshoot common issues.
+This document is the main project manual for ChronoSpectra. It explains what the system does, how the repo is organized, how to run it, how configuration works, how training and retraining fit together, and how to troubleshoot common issues.
 
 ## 1. Overview
 
-FinSpectra is a financial time-series forecasting application built around one shared configuration file and two main services:
+ChronoSpectra is a financial time-series forecasting application built around one shared configuration file and two main services:
 
 - a FastAPI backend
 - a React + TypeScript frontend
@@ -371,6 +371,7 @@ Use this page for:
 
 - educational walkthrough of the STFT-to-CNN pipeline
 - synchronized frame-by-frame explanation of the prediction flow
+- the CNN architecture diagram rendered from the real backend layer stack, including the optional embedding branch
 
 ### Training (`/training`)
 

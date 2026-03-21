@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 import pickle
+from datetime import datetime, time, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -61,6 +62,8 @@ def predict(stock_id: str, request: Request) -> PredictionResponse:
     )
     predicted_normalized = float(prediction_tensor.squeeze().item())
     predicted_price = float(scaler.denormalize(np.array([predicted_normalized], dtype=float))[0])
+    prediction_horizon_days = int(stock["model"]["prediction_horizon_days"])
+    exchange_config = request.app.state.config["exchanges"][stock["exchange"]]
     return PredictionResponse(
         stock_id=stock["id"],
         ticker=latest_window["ticker"],
@@ -69,8 +72,14 @@ def predict(stock_id: str, request: Request) -> PredictionResponse:
         checkpoint_path=str(load_result.artifact_path),
         scaler_path=str(registry.resolve_scaler_path(stock_id)),
         transform_name=latest_window["transform_name"],
-        prediction_horizon_days=int(stock["model"]["prediction_horizon_days"]),
+        prediction_horizon_days=prediction_horizon_days,
         as_of_timestamp=latest_window["as_of_timestamp"],
+        prediction_target_at=resolve_prediction_target_at(
+            latest_window["as_of_timestamp"],
+            prediction_horizon_days,
+            str(exchange_config["market_hours"]["timezone"]),
+            str(exchange_config["market_hours"]["close"]),
+        ),
         latest_close=float(latest_window["latest_close"]),
         predicted_price=predicted_price,
         predicted_price_normalized=predicted_normalized,
@@ -337,6 +346,31 @@ def direction_label(delta: float) -> str:
     if math.isclose(delta, 0.0, abs_tol=1e-9):
         return "flat"
     return "up" if delta > 0 else "down"
+
+
+def resolve_prediction_target_at(
+    as_of_timestamp: str,
+    prediction_horizon_days: int,
+    timezone_name: str,
+    close_time_value: str,
+) -> str:
+    from zoneinfo import ZoneInfo
+
+    timezone = ZoneInfo(timezone_name)
+    close_time = time.fromisoformat(close_time_value)
+    as_of_datetime = datetime.fromisoformat(as_of_timestamp)
+    if as_of_datetime.tzinfo is None:
+        as_of_datetime = as_of_datetime.replace(tzinfo=timezone)
+    current_date = as_of_datetime.astimezone(timezone).date()
+    remaining_sessions = max(prediction_horizon_days, 1)
+
+    while remaining_sessions > 0:
+        current_date += timedelta(days=1)
+        if current_date.weekday() < 5:
+            remaining_sessions -= 1
+
+    target_datetime = datetime.combine(current_date, close_time, tzinfo=timezone)
+    return target_datetime.isoformat()
 
 
 def raise_model_not_trained_error(stock_id: str, load_result: ModelLoadResult) -> None:

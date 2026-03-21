@@ -1,0 +1,1337 @@
+{
+  "stock_id": "RECLTD",
+  "predictions": [
+    {
+      "timestamp": "2025-08-18T00:00:00",
+      "predicted_price": 390.5734558105469,
+      "actual_price": 378.3499755859375,
+      "reference_price": 381.3500061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013399Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-08-19T00:00:00",
+      "predicted_price": 390.6531066894531,
+      "actual_price": 382.29998779296875,
+      "reference_price": 387.29998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013416Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-08-20T00:00:00",
+      "predicted_price": 390.5875549316406,
+      "actual_price": 380.8500061035156,
+      "reference_price": 385.45001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013420Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-08-21T00:00:00",
+      "predicted_price": 390.5758056640625,
+      "actual_price": 380.6000061035156,
+      "reference_price": 387.1499938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013423Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-08-22T00:00:00",
+      "predicted_price": 390.5655212402344,
+      "actual_price": 375.5999755859375,
+      "reference_price": 381.54998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013426Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-08-25T00:00:00",
+      "predicted_price": 390.56231689453125,
+      "actual_price": 375.04998779296875,
+      "reference_price": 378.3500061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013428Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-08-26T00:00:00",
+      "predicted_price": 390.5977478027344,
+      "actual_price": 363.54998779296875,
+      "reference_price": 382.29998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013431Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-08-28T00:00:00",
+      "predicted_price": 390.6728210449219,
+      "actual_price": 354.8999938964844,
+      "reference_price": 380.8500061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013433Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-08-29T00:00:00",
+      "predicted_price": 390.7879638671875,
+      "actual_price": 350.0,
+      "reference_price": 380.6000061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013436Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-01T00:00:00",
+      "predicted_price": 390.9428405761719,
+      "actual_price": 360.89996337890625,
+      "reference_price": 375.6000061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013439Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-02T00:00:00",
+      "predicted_price": 391.1410217285156,
+      "actual_price": 364.75,
+      "reference_price": 375.04998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013441Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-03T00:00:00",
+      "predicted_price": 391.3965148925781,
+      "actual_price": 367.7999572753906,
+      "reference_price": 363.54998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013444Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-04T00:00:00",
+      "predicted_price": 391.7217712402344,
+      "actual_price": 364.29998779296875,
+      "reference_price": 354.8999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013446Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-05T00:00:00",
+      "predicted_price": 392.1038513183594,
+      "actual_price": 366.1499938964844,
+      "reference_price": 350.0,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013449Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-08T00:00:00",
+      "predicted_price": 392.5552062988281,
+      "actual_price": 369.0,
+      "reference_price": 360.8999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013451Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-09T00:00:00",
+      "predicted_price": 393.026611328125,
+      "actual_price": 368.0999755859375,
+      "reference_price": 364.75,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013453Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-10T00:00:00",
+      "predicted_price": 393.5157165527344,
+      "actual_price": 370.9499816894531,
+      "reference_price": 367.79998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013456Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-11T00:00:00",
+      "predicted_price": 393.9513854980469,
+      "actual_price": 374.64996337890625,
+      "reference_price": 364.29998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013458Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-12T00:00:00",
+      "predicted_price": 394.32257080078125,
+      "actual_price": 373.29998779296875,
+      "reference_price": 366.1499938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013461Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-15T00:00:00",
+      "predicted_price": 394.70697021484375,
+      "actual_price": 378.4499816894531,
+      "reference_price": 369.0,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013667Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-16T00:00:00",
+      "predicted_price": 395.1135559082031,
+      "actual_price": 380.4999694824219,
+      "reference_price": 368.1000061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013675Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-17T00:00:00",
+      "predicted_price": 395.50787353515625,
+      "actual_price": 384.39996337890625,
+      "reference_price": 370.95001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013679Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-18T00:00:00",
+      "predicted_price": 395.9080810546875,
+      "actual_price": 384.39996337890625,
+      "reference_price": 374.6499938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013682Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-19T00:00:00",
+      "predicted_price": 396.36737060546875,
+      "actual_price": 384.4999694824219,
+      "reference_price": 373.29998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013684Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-22T00:00:00",
+      "predicted_price": 396.8910217285156,
+      "actual_price": 384.0,
+      "reference_price": 378.45001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013686Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-23T00:00:00",
+      "predicted_price": 397.49554443359375,
+      "actual_price": 386.6999816894531,
+      "reference_price": 380.5,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013688Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-24T00:00:00",
+      "predicted_price": 398.1191101074219,
+      "actual_price": 382.0,
+      "reference_price": 384.3999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013691Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-25T00:00:00",
+      "predicted_price": 398.7484130859375,
+      "actual_price": 375.2499694824219,
+      "reference_price": 384.3999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013693Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-26T00:00:00",
+      "predicted_price": 399.20147705078125,
+      "actual_price": 367.39996337890625,
+      "reference_price": 384.5,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013695Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-29T00:00:00",
+      "predicted_price": 399.5168151855469,
+      "actual_price": 371.9999694824219,
+      "reference_price": 384.0,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013698Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-09-30T00:00:00",
+      "predicted_price": 399.72711181640625,
+      "actual_price": 372.8499755859375,
+      "reference_price": 386.70001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013700Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-01T00:00:00",
+      "predicted_price": 399.9328308105469,
+      "actual_price": 377.5499572753906,
+      "reference_price": 382.0,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013702Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-03T00:00:00",
+      "predicted_price": 400.1102600097656,
+      "actual_price": 380.3499755859375,
+      "reference_price": 375.25,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013704Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-06T00:00:00",
+      "predicted_price": 400.1468811035156,
+      "actual_price": 378.0499572753906,
+      "reference_price": 367.3999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013706Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-07T00:00:00",
+      "predicted_price": 400.0896911621094,
+      "actual_price": 377.7499694824219,
+      "reference_price": 372.0,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013708Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-08T00:00:00",
+      "predicted_price": 400.05426025390625,
+      "actual_price": 372.5,
+      "reference_price": 372.8500061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013710Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-09T00:00:00",
+      "predicted_price": 400.01788330078125,
+      "actual_price": 371.6000061035156,
+      "reference_price": 377.54998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013713Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-10T00:00:00",
+      "predicted_price": 399.9783935546875,
+      "actual_price": 372.9499816894531,
+      "reference_price": 380.3500061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013715Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-13T00:00:00",
+      "predicted_price": 399.9330749511719,
+      "actual_price": 371.1000061035156,
+      "reference_price": 378.04998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013718Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-14T00:00:00",
+      "predicted_price": 399.8673095703125,
+      "actual_price": 370.2999572753906,
+      "reference_price": 377.75,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013720Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-15T00:00:00",
+      "predicted_price": 399.8127136230469,
+      "actual_price": 375.7999572753906,
+      "reference_price": 372.5,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013723Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-16T00:00:00",
+      "predicted_price": 399.7698974609375,
+      "actual_price": 377.4999694824219,
+      "reference_price": 371.6000061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013725Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-17T00:00:00",
+      "predicted_price": 399.7365417480469,
+      "actual_price": 374.9499816894531,
+      "reference_price": 372.95001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013727Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-20T00:00:00",
+      "predicted_price": 399.7264404296875,
+      "actual_price": 374.6999816894531,
+      "reference_price": 371.1000061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013732Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-21T00:00:00",
+      "predicted_price": 399.7769470214844,
+      "actual_price": 377.14996337890625,
+      "reference_price": 370.29998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013736Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-23T00:00:00",
+      "predicted_price": 399.90338134765625,
+      "actual_price": 374.89996337890625,
+      "reference_price": 375.79998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013740Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-24T00:00:00",
+      "predicted_price": 400.09356689453125,
+      "actual_price": 372.5999755859375,
+      "reference_price": 377.5,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013745Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-27T00:00:00",
+      "predicted_price": 400.34844970703125,
+      "actual_price": 373.70001220703125,
+      "reference_price": 374.95001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013749Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-28T00:00:00",
+      "predicted_price": 400.6602478027344,
+      "actual_price": 368.9499816894531,
+      "reference_price": 374.70001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013754Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-29T00:00:00",
+      "predicted_price": 401.0086364746094,
+      "actual_price": 385.5499572753906,
+      "reference_price": 377.1499938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013760Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-30T00:00:00",
+      "predicted_price": 401.4066162109375,
+      "actual_price": 378.2999572753906,
+      "reference_price": 374.8999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013767Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-10-31T00:00:00",
+      "predicted_price": 401.8350830078125,
+      "actual_price": 374.8500061035156,
+      "reference_price": 372.6000061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013772Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-11-03T00:00:00",
+      "predicted_price": 402.2859191894531,
+      "actual_price": 379.1999816894531,
+      "reference_price": 373.70001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013776Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-11-04T00:00:00",
+      "predicted_price": 402.7514343261719,
+      "actual_price": 370.64996337890625,
+      "reference_price": 368.95001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013778Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-11-06T00:00:00",
+      "predicted_price": 403.25091552734375,
+      "actual_price": 362.6999816894531,
+      "reference_price": 385.54998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013781Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-11-07T00:00:00",
+      "predicted_price": 403.8020324707031,
+      "actual_price": 364.95001220703125,
+      "reference_price": 378.29998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013783Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-11-10T00:00:00",
+      "predicted_price": 404.3737487792969,
+      "actual_price": 362.3999938964844,
+      "reference_price": 374.8500061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013786Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-11-11T00:00:00",
+      "predicted_price": 404.9951477050781,
+      "actual_price": 362.0499572753906,
+      "reference_price": 379.20001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013788Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-11-12T00:00:00",
+      "predicted_price": 405.62786865234375,
+      "actual_price": 362.2499694824219,
+      "reference_price": 370.6499938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013791Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-11-13T00:00:00",
+      "predicted_price": 406.28436279296875,
+      "actual_price": 359.0499572753906,
+      "reference_price": 362.70001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013793Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-11-14T00:00:00",
+      "predicted_price": 406.8786926269531,
+      "actual_price": 358.0499572753906,
+      "reference_price": 364.95001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013795Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-11-17T00:00:00",
+      "predicted_price": 407.52239990234375,
+      "actual_price": 361.3999938964844,
+      "reference_price": 362.3999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013798Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-11-18T00:00:00",
+      "predicted_price": 408.227294921875,
+      "actual_price": 359.0499572753906,
+      "reference_price": 362.04998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013800Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-11-19T00:00:00",
+      "predicted_price": 408.94537353515625,
+      "actual_price": 359.4499816894531,
+      "reference_price": 362.25,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013802Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-11-20T00:00:00",
+      "predicted_price": 409.6929626464844,
+      "actual_price": 361.3999938964844,
+      "reference_price": 359.04998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013804Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-11-21T00:00:00",
+      "predicted_price": 410.29681396484375,
+      "actual_price": 358.1999816894531,
+      "reference_price": 358.04998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013806Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-11-24T00:00:00",
+      "predicted_price": 410.7876892089844,
+      "actual_price": 355.8499755859375,
+      "reference_price": 361.3999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013809Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-11-25T00:00:00",
+      "predicted_price": 411.27081298828125,
+      "actual_price": 351.75,
+      "reference_price": 359.04998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013811Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-11-26T00:00:00",
+      "predicted_price": 411.7552795410156,
+      "actual_price": 356.39996337890625,
+      "reference_price": 359.45001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013813Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-11-27T00:00:00",
+      "predicted_price": 412.2425537109375,
+      "actual_price": 362.2499694824219,
+      "reference_price": 361.3999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013816Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-11-28T00:00:00",
+      "predicted_price": 412.72943115234375,
+      "actual_price": 360.89996337890625,
+      "reference_price": 358.20001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013818Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-01T00:00:00",
+      "predicted_price": 413.2168273925781,
+      "actual_price": 358.1999816894531,
+      "reference_price": 355.8500061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013821Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-02T00:00:00",
+      "predicted_price": 413.7583923339844,
+      "actual_price": 357.4499816894531,
+      "reference_price": 351.75,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013823Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-03T00:00:00",
+      "predicted_price": 414.3251647949219,
+      "actual_price": 350.29998779296875,
+      "reference_price": 356.3999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013826Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-04T00:00:00",
+      "predicted_price": 414.9500732421875,
+      "actual_price": 352.75,
+      "reference_price": 362.25,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013828Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-05T00:00:00",
+      "predicted_price": 415.6031799316406,
+      "actual_price": 353.2999572753906,
+      "reference_price": 360.8999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013830Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-08T00:00:00",
+      "predicted_price": 416.26654052734375,
+      "actual_price": 342.5999755859375,
+      "reference_price": 358.20001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013833Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-09T00:00:00",
+      "predicted_price": 416.9465026855469,
+      "actual_price": 342.8499755859375,
+      "reference_price": 357.45001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013835Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-10T00:00:00",
+      "predicted_price": 417.65838623046875,
+      "actual_price": 342.5999755859375,
+      "reference_price": 350.29998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013837Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-11T00:00:00",
+      "predicted_price": 418.40008544921875,
+      "actual_price": 343.9999694824219,
+      "reference_price": 352.75,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013840Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-12T00:00:00",
+      "predicted_price": 419.1414489746094,
+      "actual_price": 344.3999938964844,
+      "reference_price": 353.29998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013842Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-15T00:00:00",
+      "predicted_price": 419.8490905761719,
+      "actual_price": 342.5,
+      "reference_price": 342.6000061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013844Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-16T00:00:00",
+      "predicted_price": 420.5236511230469,
+      "actual_price": 335.39996337890625,
+      "reference_price": 342.8500061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013847Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-17T00:00:00",
+      "predicted_price": 421.16937255859375,
+      "actual_price": 333.95001220703125,
+      "reference_price": 342.6000061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013849Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-18T00:00:00",
+      "predicted_price": 421.7812805175781,
+      "actual_price": 336.9999694824219,
+      "reference_price": 344.0,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013851Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-19T00:00:00",
+      "predicted_price": 422.3392333984375,
+      "actual_price": 339.20001220703125,
+      "reference_price": 344.3999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013854Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-22T00:00:00",
+      "predicted_price": 422.866455078125,
+      "actual_price": 344.2999572753906,
+      "reference_price": 342.5,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013856Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-23T00:00:00",
+      "predicted_price": 423.3512878417969,
+      "actual_price": 354.20001220703125,
+      "reference_price": 335.3999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013858Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-24T00:00:00",
+      "predicted_price": 423.7903747558594,
+      "actual_price": 354.7499694824219,
+      "reference_price": 333.95001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013861Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-26T00:00:00",
+      "predicted_price": 424.1925964355469,
+      "actual_price": 357.1000061035156,
+      "reference_price": 337.0,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013863Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-29T00:00:00",
+      "predicted_price": 424.5380554199219,
+      "actual_price": 355.95001220703125,
+      "reference_price": 339.20001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013866Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-30T00:00:00",
+      "predicted_price": 424.8394470214844,
+      "actual_price": 351.39996337890625,
+      "reference_price": 344.29998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013868Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2025-12-31T00:00:00",
+      "predicted_price": 424.9573059082031,
+      "actual_price": 356.79998779296875,
+      "reference_price": 354.20001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013871Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-01T00:00:00",
+      "predicted_price": 425.04937744140625,
+      "actual_price": 367.6999816894531,
+      "reference_price": 354.75,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013873Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-02T00:00:00",
+      "predicted_price": 425.12017822265625,
+      "actual_price": 380.64996337890625,
+      "reference_price": 357.1000061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013876Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-05T00:00:00",
+      "predicted_price": 425.16741943359375,
+      "actual_price": 380.9999694824219,
+      "reference_price": 355.95001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013878Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-06T00:00:00",
+      "predicted_price": 425.19378662109375,
+      "actual_price": 382.8500061035156,
+      "reference_price": 351.3999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013880Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-07T00:00:00",
+      "predicted_price": 425.18231201171875,
+      "actual_price": 385.2499694824219,
+      "reference_price": 356.79998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013882Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-08T00:00:00",
+      "predicted_price": 425.1278991699219,
+      "actual_price": 371.39996337890625,
+      "reference_price": 367.70001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013885Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-09T00:00:00",
+      "predicted_price": 425.0361328125,
+      "actual_price": 363.6000061035156,
+      "reference_price": 380.6499938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013887Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-12T00:00:00",
+      "predicted_price": 424.9149475097656,
+      "actual_price": 370.5,
+      "reference_price": 381.0,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013889Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-13T00:00:00",
+      "predicted_price": 424.7688293457031,
+      "actual_price": 366.89996337890625,
+      "reference_price": 382.8500061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013891Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-14T00:00:00",
+      "predicted_price": 424.5929870605469,
+      "actual_price": 369.8999938964844,
+      "reference_price": 385.25,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013894Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-15T00:00:00",
+      "predicted_price": 424.3786926269531,
+      "actual_price": 369.8999938964844,
+      "reference_price": 371.3999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013896Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-16T00:00:00",
+      "predicted_price": 424.13427734375,
+      "actual_price": 371.0,
+      "reference_price": 363.6000061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013899Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-19T00:00:00",
+      "predicted_price": 423.8779602050781,
+      "actual_price": 370.0999755859375,
+      "reference_price": 370.5,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013901Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-20T00:00:00",
+      "predicted_price": 423.60589599609375,
+      "actual_price": 358.89996337890625,
+      "reference_price": 366.8999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013904Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-21T00:00:00",
+      "predicted_price": 423.3205261230469,
+      "actual_price": 355.79998779296875,
+      "reference_price": 369.8999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013906Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-22T00:00:00",
+      "predicted_price": 423.0262756347656,
+      "actual_price": 366.20001220703125,
+      "reference_price": 369.8999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013908Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-23T00:00:00",
+      "predicted_price": 422.7359619140625,
+      "actual_price": 361.3499755859375,
+      "reference_price": 371.0,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013910Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-27T00:00:00",
+      "predicted_price": 422.4649658203125,
+      "actual_price": 363.9499816894531,
+      "reference_price": 370.1000061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013913Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-28T00:00:00",
+      "predicted_price": 422.20159912109375,
+      "actual_price": 377.4999694824219,
+      "reference_price": 358.8999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013915Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-29T00:00:00",
+      "predicted_price": 421.9304504394531,
+      "actual_price": 375.2999572753906,
+      "reference_price": 355.79998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013917Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-01-30T00:00:00",
+      "predicted_price": 421.6561584472656,
+      "actual_price": 364.0999755859375,
+      "reference_price": 366.20001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013920Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-02-02T00:00:00",
+      "predicted_price": 421.3753356933594,
+      "actual_price": 363.0999755859375,
+      "reference_price": 361.3500061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013922Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-02-03T00:00:00",
+      "predicted_price": 421.0769958496094,
+      "actual_price": 372.5,
+      "reference_price": 363.95001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013924Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-02-04T00:00:00",
+      "predicted_price": 420.7767333984375,
+      "actual_price": 381.5999755859375,
+      "reference_price": 377.5,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013926Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-02-05T00:00:00",
+      "predicted_price": 420.437255859375,
+      "actual_price": 382.0999755859375,
+      "reference_price": 375.29998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013929Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-02-06T00:00:00",
+      "predicted_price": 420.0962219238281,
+      "actual_price": 372.5,
+      "reference_price": 364.1000061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013932Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-02-09T00:00:00",
+      "predicted_price": 419.77520751953125,
+      "actual_price": 359.89996337890625,
+      "reference_price": 363.1000061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013934Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-02-10T00:00:00",
+      "predicted_price": 419.46185302734375,
+      "actual_price": 355.79998779296875,
+      "reference_price": 372.5,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013936Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-02-11T00:00:00",
+      "predicted_price": 419.165771484375,
+      "actual_price": 353.9499816894531,
+      "reference_price": 381.6000061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013938Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-02-12T00:00:00",
+      "predicted_price": 418.8817138671875,
+      "actual_price": 350.6999816894531,
+      "reference_price": 382.1000061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013941Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-02-13T00:00:00",
+      "predicted_price": 418.61700439453125,
+      "actual_price": 346.89996337890625,
+      "reference_price": 372.5,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013943Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-02-16T00:00:00",
+      "predicted_price": 418.3638610839844,
+      "actual_price": 353.5,
+      "reference_price": 359.8999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013945Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-02-17T00:00:00",
+      "predicted_price": 418.1593933105469,
+      "actual_price": 358.5999755859375,
+      "reference_price": 355.79998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013948Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-02-18T00:00:00",
+      "predicted_price": 418.0235290527344,
+      "actual_price": 364.29998779296875,
+      "reference_price": 353.95001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013950Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-02-19T00:00:00",
+      "predicted_price": 417.9115295410156,
+      "actual_price": 353.5499572753906,
+      "reference_price": 350.70001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013952Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-02-20T00:00:00",
+      "predicted_price": 417.80804443359375,
+      "actual_price": 354.20001220703125,
+      "reference_price": 346.8999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013955Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-02-23T00:00:00",
+      "predicted_price": 417.75518798828125,
+      "actual_price": 352.20001220703125,
+      "reference_price": 353.5,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013957Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-02-24T00:00:00",
+      "predicted_price": 417.7650146484375,
+      "actual_price": 353.9999694824219,
+      "reference_price": 358.6000061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013959Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-02-25T00:00:00",
+      "predicted_price": 417.812255859375,
+      "actual_price": 353.9999694824219,
+      "reference_price": 364.29998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013962Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-02-26T00:00:00",
+      "predicted_price": 417.87017822265625,
+      "actual_price": 354.0999755859375,
+      "reference_price": 353.54998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013964Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-02-27T00:00:00",
+      "predicted_price": 417.9620056152344,
+      "actual_price": 349.7999572753906,
+      "reference_price": 354.20001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013966Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-03-02T00:00:00",
+      "predicted_price": 418.06842041015625,
+      "actual_price": 338.95001220703125,
+      "reference_price": 352.20001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013969Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-03-04T00:00:00",
+      "predicted_price": 418.18548583984375,
+      "actual_price": 328.75,
+      "reference_price": 354.0,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013971Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-03-05T00:00:00",
+      "predicted_price": 418.3167724609375,
+      "actual_price": 341.8499755859375,
+      "reference_price": 354.0,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013974Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-03-06T00:00:00",
+      "predicted_price": 418.45758056640625,
+      "actual_price": 339.14996337890625,
+      "reference_price": 354.1000061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013976Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-03-09T00:00:00",
+      "predicted_price": 418.5968933105469,
+      "actual_price": 324.3999938964844,
+      "reference_price": 349.79998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013978Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-03-10T00:00:00",
+      "predicted_price": 418.7337646484375,
+      "actual_price": 334.39996337890625,
+      "reference_price": 338.95001220703125,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013980Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-03-11T00:00:00",
+      "predicted_price": 418.8671875,
+      "actual_price": 333.04998779296875,
+      "reference_price": 328.75,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013983Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-03-12T00:00:00",
+      "predicted_price": 418.9942626953125,
+      "actual_price": 343.4999694824219,
+      "reference_price": 341.8500061035156,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013985Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-03-13T00:00:00",
+      "predicted_price": 419.1133117675781,
+      "actual_price": 331.5,
+      "reference_price": 339.1499938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013987Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-03-16T00:00:00",
+      "predicted_price": 419.2416076660156,
+      "actual_price": 332.45001220703125,
+      "reference_price": 324.3999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013990Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-03-17T00:00:00",
+      "predicted_price": 419.3763732910156,
+      "actual_price": 337.70001220703125,
+      "reference_price": 334.3999938964844,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013992Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-03-18T00:00:00",
+      "predicted_price": 419.52557373046875,
+      "actual_price": 348.0499572753906,
+      "reference_price": 333.04998779296875,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013994Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-03-19T00:00:00",
+      "predicted_price": 419.6942138671875,
+      "actual_price": 333.39996337890625,
+      "reference_price": 343.5,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013997Z",
+      "source": "retrain_evaluation"
+    },
+    {
+      "timestamp": "2026-03-20T00:00:00",
+      "predicted_price": 419.86322021484375,
+      "actual_price": 330.4999694824219,
+      "reference_price": 331.5,
+      "mode": "per_stock",
+      "recorded_at": "2026-03-21T16:53:36.013999Z",
+      "source": "retrain_evaluation"
+    }
+  ]
+}

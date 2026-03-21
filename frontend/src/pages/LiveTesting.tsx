@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useState } from 'react'
+import { startTransition, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { LivePredictionChart } from '../components/charts/LivePredictionChart'
@@ -44,6 +44,18 @@ const formatTimestamp = (value: string | null) => {
 
 const resolveTheme = (): ThemeMode => {
   return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
+}
+
+const resolveSessionKey = (timestamp: string) => {
+  const parsedDate = new Date(timestamp)
+  if (Number.isNaN(parsedDate.getTime())) {
+    return null
+  }
+  return [
+    parsedDate.getFullYear(),
+    String(parsedDate.getMonth() + 1).padStart(2, '0'),
+    String(parsedDate.getDate()).padStart(2, '0'),
+  ].join('-')
 }
 
 const resolveConnectionBadge = (
@@ -137,6 +149,10 @@ const LiveTestingContent = ({
   )
   const latestPredictionMode =
     liveMarket.snapshot?.prediction_mode ?? 'Awaiting stream'
+  const latestPredictionHorizon =
+    liveMarket.snapshot?.prediction_horizon_days ?? null
+  const latestPredictionTargetAt =
+    liveMarket.snapshot?.prediction_target_at ?? null
   const latestProvider =
     liveMarket.snapshot?.live_data_provider ??
     marketStatus.data?.live_data_provider ??
@@ -171,6 +187,37 @@ const LiveTestingContent = ({
     predictionMetrics.spread === null
       ? 'Waiting'
       : formatCurrency(predictionMetrics.spread)
+  const chartHistory = useMemo(() => {
+    if (liveMarket.history.length === 0) {
+      return []
+    }
+
+    const latestOpenPoint =
+      [...liveMarket.history]
+        .reverse()
+        .find((point) => point.market_open) ?? liveMarket.history.at(-1) ?? null
+
+    if (!latestOpenPoint) {
+      return liveMarket.history
+    }
+
+    const sessionKey = resolveSessionKey(latestOpenPoint.timestamp)
+    if (!sessionKey) {
+      return liveMarket.history
+    }
+
+    const sessionPoints = liveMarket.history.filter((point) => {
+      if (resolveSessionKey(point.timestamp) !== sessionKey) {
+        return false
+      }
+      if (!effectiveMarketOpen && !point.market_open) {
+        return false
+      }
+      return true
+    })
+
+    return sessionPoints.length > 0 ? sessionPoints : liveMarket.history
+  }, [effectiveMarketOpen, liveMarket.history])
 
   return (
     <div className="space-y-8">
@@ -212,7 +259,7 @@ const LiveTestingContent = ({
           summary="This page is for monitoring the newest actual-versus-predicted readings. It keeps the main numbers, chart, and table in one place so you can read them in order."
           steps={[
             'Check the status badge first so you know whether you are looking at live market data or an after-hours snapshot.',
-            'Read the four metric cards next. They summarize the latest actual price, predicted price, spread, and direction.',
+            'Read the metric cards next. They summarize the latest actual close, forecast, spread, direction, and forecast target date.',
             'Use the chart for trend shape and the table for exact recent values when you need detail.',
           ]}
           nextHref="/compare"
@@ -229,8 +276,9 @@ const LiveTestingContent = ({
                 Countdown to the next session
               </h3>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-muted">
-                The page keeps the most recent snapshot visible and counts down
-                to the next market open.
+                The page keeps the most recent snapshot visible, preserves the
+                saved local history, and shows the current multi-day forecast
+                target instead of pretending the model predicts the next tick.
               </p>
             </div>
             <div className="rounded-[22px] border border-stroke/70 bg-card/70 px-5 py-4 text-right">
@@ -252,7 +300,7 @@ const LiveTestingContent = ({
                 marketStatus.retry()
                 liveMarket.retry()
               }}
-              title="Refresh the market status and the latest live snapshot."
+              aria-label="Refresh the market status and the latest live snapshot."
               className="rounded-full border border-teal/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-teal transition hover:bg-teal/10"
             >
               Refresh status
@@ -267,11 +315,11 @@ const LiveTestingContent = ({
         </section>
       ) : null}
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         <MetricCard
           label="Actual Price"
           value={formatCurrency(predictionMetrics.actual)}
-          detail={`Samples collected: ${predictionMetrics.sampleCount}`}
+          detail={`Session points shown: ${chartHistory.length}`}
           hint="The latest real market price received by the page, plus how many live samples are currently stored in the chart."
         />
         <MetricCard
@@ -292,14 +340,31 @@ const LiveTestingContent = ({
           detail={
             effectiveMarketOpen
               ? 'Derived from the sign of the latest prediction spread.'
-              : 'Latest after-hours reading retained until the next open.'
+              : 'Last open-session forecast retained until the next open.'
           }
           hint="A simple up, down, or flat interpretation of the latest prediction spread."
+        />
+        <MetricCard
+          label="Forecast Horizon"
+          value={
+            latestPredictionHorizon
+              ? `${latestPredictionHorizon} trading days`
+              : 'Waiting'
+          }
+          detail="This model is not producing a next-tick estimate. It predicts the configured future horizon."
+          hint="The forecast horizon comes from the stock config. If this says 5 trading days, the predicted price is aimed at that target date, not the next stream update."
+        />
+        <MetricCard
+          label="Forecast Target"
+          value={latestPredictionTargetAt ? formatTimestamp(latestPredictionTargetAt) : 'Waiting'}
+          detail="The estimated target session for the current forecast."
+          hint="This is the session the current forecast is aimed at, based on the configured horizon and exchange calendar."
         />
       </section>
 
       <LivePredictionChart
-        points={liveMarket.history}
+        points={chartHistory}
+        latestPoint={liveMarket.history.at(-1) ?? null}
         loading={isChartLoading}
         error={combinedError}
         hint={combinedHint}
@@ -308,6 +373,7 @@ const LiveTestingContent = ({
           liveMarket.retry()
         }}
         connectionState={liveMarket.connectionState}
+        marketOpen={effectiveMarketOpen}
         theme={theme}
       />
 

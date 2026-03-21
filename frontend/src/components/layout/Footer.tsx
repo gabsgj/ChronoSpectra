@@ -40,7 +40,7 @@ export function Footer() {
               <rect x="15" y="26" width="5" height="18" fill="#4B6587" rx="1" />
             </svg>
             <div className="text-xs font-medium text-ink">
-              &copy; 2026 Gabriel James <span className="inline-block">💫</span>
+              &copy; 2026 Gabriel James
             </div>
           </div>
 

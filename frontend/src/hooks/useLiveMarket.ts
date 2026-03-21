@@ -8,6 +8,8 @@ import type {
 } from '../types'
 
 const RECONNECT_DELAYS_MS = [1000, 2000, 4000]
+const LIVE_HISTORY_LIMIT = 2048
+const LIVE_STORAGE_PREFIX = 'chronospectra-live-history-v1'
 
 interface LiveMarketState {
   connectionState: LiveConnectionState
@@ -17,19 +19,70 @@ interface LiveMarketState {
   snapshot: LiveMarketEvent | null
 }
 
-const buildInitialState = (): LiveMarketState => ({
-  connectionState: 'idle',
-  error: null,
-  history: [],
-  reconnectAttempt: 0,
-  snapshot: null,
-})
+const getStorageKey = (stockId: string) => `${LIVE_STORAGE_PREFIX}:${stockId}`
+
+const readPersistedState = (stockId: string): Pick<
+  LiveMarketState,
+  'history' | 'snapshot'
+> => {
+  try {
+    const rawValue = window.localStorage.getItem(getStorageKey(stockId))
+    if (!rawValue) {
+      return {
+        history: [],
+        snapshot: null,
+      }
+    }
+
+    const parsedValue = JSON.parse(rawValue) as {
+      history?: LivePredictionPoint[]
+      snapshot?: LiveMarketEvent | null
+    }
+
+    return {
+      history: Array.isArray(parsedValue.history) ? parsedValue.history : [],
+      snapshot:
+        parsedValue.snapshot && typeof parsedValue.snapshot === 'object'
+          ? parsedValue.snapshot
+          : null,
+    }
+  } catch {
+    return {
+      history: [],
+      snapshot: null,
+    }
+  }
+}
+
+const writePersistedState = (
+  stockId: string,
+  state: Pick<LiveMarketState, 'history' | 'snapshot'>,
+) => {
+  try {
+    window.localStorage.setItem(getStorageKey(stockId), JSON.stringify(state))
+  } catch {
+    // Ignore storage failures and keep the live session functional.
+  }
+}
+
+const buildInitialState = (stockId: string): LiveMarketState => {
+  const persistedState = readPersistedState(stockId)
+  return {
+    connectionState: persistedState.snapshot?.market_open ? 'connecting' : 'idle',
+    error: null,
+    history: persistedState.history,
+    reconnectAttempt: 0,
+    snapshot: persistedState.snapshot,
+  }
+}
 
 const toPredictionPoint = (event: LiveMarketEvent): LivePredictionPoint => ({
   actual: event.actual,
   market_open: event.market_open,
   predicted: event.predicted,
+  prediction_horizon_days: event.prediction_horizon_days,
   prediction_mode: event.prediction_mode,
+  prediction_target_at: event.prediction_target_at,
   spread: event.predicted - event.actual,
   timestamp: event.timestamp,
 })
@@ -46,12 +99,23 @@ const mergeHistoryPoint = (
     )
   })
 
-  return [...deduplicated, point].slice(-10)
+  return [...deduplicated, point].slice(-LIVE_HISTORY_LIMIT)
 }
 
 export const useLiveMarket = (stockId: string) => {
-  const [state, setState] = useState<LiveMarketState>(buildInitialState)
+  const [state, setState] = useState<LiveMarketState>(() => buildInitialState(stockId))
   const [requestVersion, setRequestVersion] = useState(0)
+
+  useEffect(() => {
+    setState(buildInitialState(stockId))
+  }, [stockId])
+
+  useEffect(() => {
+    writePersistedState(stockId, {
+      history: state.history,
+      snapshot: state.snapshot,
+    })
+  }, [state.history, state.snapshot, stockId])
 
   useEffect(() => {
     let allowReconnect = true
@@ -163,8 +227,9 @@ export const useLiveMarket = (stockId: string) => {
     retry: () => {
       startTransition(() => {
         setState((currentState) => ({
-          ...buildInitialState(),
+          ...buildInitialState(stockId),
           history: currentState.history,
+          snapshot: currentState.snapshot,
         }))
         setRequestVersion((currentValue) => currentValue + 1)
       })

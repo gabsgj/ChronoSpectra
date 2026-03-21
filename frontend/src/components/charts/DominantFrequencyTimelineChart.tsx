@@ -43,12 +43,26 @@ export const DominantFrequencyTimelineChart = ({
       return []
     }
 
+    const positiveFrequencyRowIndices = data.frequency_axis.reduce<number[]>(
+      (rowIndices, frequencyValue, rowIndex) => {
+        if (Number.isFinite(frequencyValue) && frequencyValue > 0) {
+          rowIndices.push(rowIndex)
+        }
+        return rowIndices
+      },
+      [],
+    )
+    const candidateRowIndices =
+      positiveFrequencyRowIndices.length > 0
+        ? positiveFrequencyRowIndices
+        : data.frequency_axis.map((_, rowIndex) => rowIndex)
+
     return data.time_timestamps
       .map((timestamp, columnIndex) => {
-        let dominantRowIndex = 0
+        let dominantRowIndex = candidateRowIndices[0] ?? 0
         let dominantEnergy = Number.NEGATIVE_INFINITY
 
-        for (let rowIndex = 0; rowIndex < data.spectrogram.length; rowIndex += 1) {
+        for (const rowIndex of candidateRowIndices) {
           const energy = data.spectrogram[rowIndex]?.[columnIndex] ?? 0
           if (energy > dominantEnergy) {
             dominantEnergy = energy
@@ -69,7 +83,7 @@ export const DominantFrequencyTimelineChart = ({
   return (
     <TrackChartCard
       title="Dominant Frequency"
-      detail="Tracks the strongest frequency band per time slice so regime shifts and volatility bursts become easier to spot than in the raw heatmap alone."
+      detail="Tracks the strongest non-zero frequency band per time slice so regime shifts and volatility bursts stand out without the zero-frequency baseline flattening the chart."
       loading={loading}
       empty={points.length === 0}
       error={error}

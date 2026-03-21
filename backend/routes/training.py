@@ -21,6 +21,7 @@ from routes.api_models import (
 from routes.utils import load_json_file, raise_structured_http_error, require_stock
 from training.runtime_state import (
     TrainingAlreadyRunningError,
+    TrainingConfigurationError,
     build_progress_payload,
     get_training_events,
     get_training_state,
@@ -30,6 +31,7 @@ from training.runtime_state import (
 router = APIRouter(tags=["training"])
 REPORT_STORE_DIR = Path(__file__).resolve().parents[1] / "models" / "model_store" / "reports"
 TRAINING_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
+    422: {"model": APIErrorResponse},
     404: {"model": APIErrorResponse},
     409: {"model": APIErrorResponse},
     503: {"model": APIErrorResponse},
@@ -51,6 +53,8 @@ def start_training(
             "training_already_running",
             str(exc),
         )
+    except TrainingConfigurationError as exc:
+        raise_structured_http_error(422, "invalid_training_request", str(exc))
     except ValueError as exc:
         raise_structured_http_error(404, "unknown_stock", str(exc))
     return TrainingStartResponse(
@@ -58,6 +62,8 @@ def start_training(
         run_id=str(runtime_state["run_id"]),
         requested_stock_ids=list(runtime_state["requested_stock_ids"]),
         total_stocks=int(runtime_state["total_stocks"]),
+        total_jobs=int(runtime_state.get("total_jobs", runtime_state["total_stocks"])),
+        planned_modes=list(runtime_state.get("planned_modes", [])),
         started_at=str(runtime_state["started_at"]),
     )
 

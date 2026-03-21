@@ -65,6 +65,8 @@ async def live_stream(stock_id: str, request: Request) -> StreamingResponse:
                 "predicted": prediction.predicted_price,
                 "prediction_mode": prediction.resolved_mode,
                 "prediction_as_of": prediction.as_of_timestamp,
+                "prediction_horizon_days": prediction.prediction_horizon_days,
+                "prediction_target_at": prediction.prediction_target_at,
                 "market_open": status_payload["market_open"],
                 "next_open_at": status_payload["next_open_at"],
                 "seconds_until_open": status_payload["seconds_until_open"],

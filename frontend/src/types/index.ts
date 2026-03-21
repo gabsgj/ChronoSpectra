@@ -226,6 +226,8 @@ export interface LiveMarketEvent {
   predicted: number
   prediction_mode: string
   prediction_as_of: string
+  prediction_horizon_days: number
+  prediction_target_at: string
   market_open: boolean
   next_open_at: string
   seconds_until_open: number
@@ -239,6 +241,8 @@ export interface LivePredictionPoint {
   spread: number
   prediction_mode: string
   market_open: boolean
+  prediction_horizon_days?: number | null
+  prediction_target_at?: string | null
 }
 
 export interface LivePredictionMetrics {
@@ -327,9 +331,18 @@ export interface TrainingRuntimeResponse {
   started_at: string | null
   finished_at: string | null
   requested_stock_ids: string[]
+  planned_modes: VariantModelMode[]
+  job_labels: string[]
   active_stock_id: string | null
+  active_mode: VariantModelMode | null
+  active_job_label: string | null
+  active_stage: string | null
+  active_stage_detail: string | null
+  active_stage_updated_at: string | null
   total_stocks: number
   completed_stocks: number
+  total_jobs: number | null
+  completed_jobs: number | null
   latest_event_id: number
   results: TrainingResult[]
 }

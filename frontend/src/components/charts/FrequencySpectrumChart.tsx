@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from 'react'
 
 import type { ThemeMode } from '../../types'
 import { getChartColors } from './getChartColors'
+import { getSvgCoordinates } from './getSvgCoordinates'
 import { TrackChartCard } from './TrackChartCard'
 
 interface FrequencySpectrumChartProps {
@@ -31,6 +32,7 @@ const MARGINS = {
   left: 58,
 }
 const MAX_BUCKETS = 72
+const MIN_ZONE_LABEL_WIDTH = 128
 const zoneFormat = format('.2f')
 
 const annotationZones = [
@@ -109,7 +111,7 @@ const FrequencySpectrumPlot = ({
   chartHeightClass = 'h-[25rem]',
 }: FrequencySpectrumPlotProps) => {
   const colors = getChartColors(theme)
-  const wrapperRef = useRef<HTMLDivElement | null>(null)
+  const svgRef = useRef<SVGSVGElement | null>(null)
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const plotWidth = CHART_WIDTH - MARGINS.left - MARGINS.right
   const plotHeight = CHART_HEIGHT - MARGINS.top - MARGINS.bottom
@@ -125,19 +127,37 @@ const FrequencySpectrumPlot = ({
     hoveredIndex !== null ? buckets[hoveredIndex] ?? null : null
   const tickFormatter = format('.2f')
 
+  const findNearestBucketIndex = (frequencyValue: number) => {
+    let nearestIndex = 0
+    let nearestDistance = Number.POSITIVE_INFINITY
+
+    buckets.forEach((bucket, index) => {
+      const distance = Math.abs(bucket.frequencyMidpoint - frequencyValue)
+      if (distance < nearestDistance) {
+        nearestDistance = distance
+        nearestIndex = index
+      }
+    })
+
+    return nearestIndex
+  }
+
   const updateHover = (clientX: number) => {
-    const bounds = wrapperRef.current?.getBoundingClientRect()
-    if (!bounds || buckets.length === 0) {
+    const coordinates = getSvgCoordinates(svgRef.current, clientX, 0)
+    if (!coordinates || buckets.length === 0) {
       return
     }
 
-    const relativeX = Math.min(Math.max(clientX - bounds.left, 0), bounds.width)
-    const ratio = relativeX / Math.max(bounds.width, 1)
-    setHoveredIndex(Math.round(ratio * Math.max(buckets.length - 1, 0)))
+    const clampedChartX = Math.min(
+      Math.max(coordinates.x, MARGINS.left),
+      CHART_WIDTH - MARGINS.right,
+    )
+    const hoveredFrequency = xScale.invert(clampedChartX)
+    setHoveredIndex(findNearestBucketIndex(hoveredFrequency))
   }
 
   return (
-    <div ref={wrapperRef} className="relative space-y-4">
+    <div className="relative space-y-4">
       <div className="grid gap-3 md:grid-cols-3">
         {annotationZones.map((zone, index) => {
           const zoneStart = index === 0 ? 0 : annotationZones[index - 1].maxFrequency
@@ -162,6 +182,7 @@ const FrequencySpectrumPlot = ({
       </div>
 
       <svg
+        ref={svgRef}
         viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
         className={`${chartHeightClass} w-full overflow-hidden rounded-[24px]`}
         role="img"
@@ -194,15 +215,18 @@ const FrequencySpectrumPlot = ({
                 height={plotHeight}
                 fill={zone.accent}
               />
-              <text
-                x={xScale(zoneStart) + 8}
-                y={MARGINS.top + 16}
-                fill={colors.axis}
-                fontSize="10"
-                letterSpacing="0.16em"
-              >
-                {zone.label}
-              </text>
+              {zoneWidth >= MIN_ZONE_LABEL_WIDTH ? (
+                <text
+                  x={xScale(zoneStart) + zoneWidth / 2}
+                  y={MARGINS.top + 16}
+                  fill={colors.axis}
+                  fontSize="10"
+                  letterSpacing="0.16em"
+                  textAnchor="middle"
+                >
+                  {zone.label}
+                </text>
+              ) : null}
             </g>
           )
         })}

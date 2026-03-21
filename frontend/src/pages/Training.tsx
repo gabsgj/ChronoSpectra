@@ -1,10 +1,12 @@
-import { startTransition, useEffect, useMemo, useState } from 'react'
+import { startTransition, useEffect, useEffectEvent, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { apiClient } from '../api/client'
 import { DriftChart } from '../components/charts/DriftChart'
 import { LossCurveChart } from '../components/charts/LossCurveChart'
 import { LiveStockSelector } from '../components/live/LiveStockSelector'
+import { LocalTrainingQueuePanel } from '../components/training/LocalTrainingQueuePanel'
+import { RecentTrainingResultsPanel } from '../components/training/RecentTrainingResultsPanel'
 import { RetrainingTimeline } from '../components/training/RetrainingTimeline'
 import { ExchangeBadge } from '../components/ui/ExchangeBadge'
 import { MetricCard } from '../components/ui/MetricCard'
@@ -15,12 +17,17 @@ import {
   defaultStockId,
   getStockById,
 } from '../config/stocksConfig'
+import { useSharedTrainingReports } from '../contexts/SharedTrainingReportsContext'
 import { formatApiError } from '../hooks/formatApiError'
 import { useRetrainingLogs } from '../hooks/useRetrainingLogs'
 import { useRetrainingProgress } from '../hooks/useRetrainingProgress'
 import { useRetrainingStatus } from '../hooks/useRetrainingStatus'
 import { useTrainingReportDetail } from '../hooks/useTrainingReportDetail'
-import type { ModelMode, ThemeMode, TrainingEpochMetrics } from '../types'
+import type {
+  ModelMode,
+  ThemeMode,
+  TrainingEpochMetrics,
+} from '../types'
 
 const resolveTheme = (): ThemeMode => {
   return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
@@ -49,6 +56,8 @@ const resolveNotebookModes = (mode: ModelMode) => {
   }
   return [mode] as const
 }
+
+const TRAINING_RUNTIME_POLL_MS = 15_000
 
 export default function Training() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -87,6 +96,7 @@ interface TrainingContentProps {
 const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
   const theme = resolveTheme()
   const reportDetail = useTrainingReportDetail(stock.id)
+  const trainingReports = useSharedTrainingReports()
   const retrainingLogs = useRetrainingLogs()
   const retrainingStatus = useRetrainingStatus()
   const retrainingProgress = useRetrainingProgress(stock.id)
@@ -116,6 +126,11 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
   }, [retrainingProgress.events, stock.id])
   const latestEpoch = liveEpochHistory.at(-1)
   const notebookModes = resolveNotebookModes(appConfig.model_mode)
+  const trainingRuntime = trainingReports.data?.runtime ?? null
+
+  const refreshSelectedReport = useEffectEvent(() => {
+    reportDetail.retry()
+  })
 
   useEffect(() => {
     const runId = retrainingProgress.runInfo?.run_id
@@ -135,6 +150,18 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
     retrainingStatus,
   ])
 
+  useEffect(() => {
+    if (!trainingRuntime?.is_running) {
+      return
+    }
+
+    const intervalId = window.setInterval(() => {
+      refreshSelectedReport()
+    }, TRAINING_RUNTIME_POLL_MS)
+
+    return () => window.clearInterval(intervalId)
+  }, [trainingRuntime?.is_running])
+
   const handleNotebookDownload = async (mode: ModelMode) => {
     setDownloadingMode(mode)
     setDownloadError(null)
@@ -144,13 +171,13 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
       const objectUrl = window.URL.createObjectURL(response.blob)
       const anchor = document.createElement('a')
       anchor.href = objectUrl
-      anchor.download = response.filename ?? `finspectra_${mode}_training.ipynb`
+      anchor.download = response.filename ?? `chronospectra_${mode}_training.ipynb`
       document.body.appendChild(anchor)
       anchor.click()
       anchor.remove()
       window.URL.revokeObjectURL(objectUrl)
       setDownloadMessage(
-        `${response.filename ?? `finspectra_${mode}_training.ipynb`} downloaded.`,
+        `${response.filename ?? `chronospectra_${mode}_training.ipynb`} downloaded.`,
       )
     } catch (error) {
       const formattedError = formatApiError(
@@ -180,6 +207,7 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
             </p>
           </div>
           <div className="space-y-2 text-right text-sm text-muted">
+            <p>History window: {stock.model.training_data_years} years</p>
             <p>Prediction horizon: {stock.model.prediction_horizon_days} days</p>
             <p>Retrain interval: {stock.model.retrain_interval_days} days</p>
             <p>Last report: {formatTimestamp(reportDetail.data?.generated_at)}</p>
@@ -200,7 +228,13 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
         />
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <MetricCard
+          label="History Window"
+          value={`${stock.model.training_data_years} years`}
+          detail="Current training-data fetch window configured for this stock."
+          hint="This is not a hard app limit. It comes from stocks.json under this stock's model.training_data_years setting, so you can increase or reduce it per stock."
+        />
         <MetricCard
           label="Latest Report MSE"
           value={formatValue(reportDetail.data?.metrics.mse)}
@@ -227,6 +261,56 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
         />
       </section>
 
+      <LocalTrainingQueuePanel
+        runtime={trainingRuntime}
+        loading={trainingReports.isLoading}
+        error={trainingReports.error}
+        hint={trainingReports.hint}
+        onRetry={() => {
+          trainingReports.retry()
+          reportDetail.retry()
+        }}
+        eyebrow="Local Training Runtime"
+        title="Backend training queue visibility"
+        summary="This panel tracks the config-driven local training run across all stocks and shared modes. It is separate from manual retraining for a single stock."
+        maxVisibleJobs={null}
+        headerExtras={
+          <>
+            <span
+              className={[
+                'inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]',
+                appConfig.local_training.enabled
+                  ? 'border-teal/35 bg-teal/10 text-teal'
+                  : 'border-stroke/70 bg-card/70 text-muted',
+              ].join(' ')}
+            >
+              {appConfig.local_training.enabled
+                ? 'Local training enabled'
+                : 'Local training disabled'}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                trainingReports.retry()
+                reportDetail.retry()
+              }}
+              aria-label="Refresh local-training runtime status."
+              className="rounded-full border border-teal/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-teal transition hover:bg-teal/10"
+            >
+              Refresh runtime
+            </button>
+          </>
+        }
+      />
+
+      <RecentTrainingResultsPanel
+        runtime={trainingRuntime}
+        eyebrow="Recent Completed Jobs"
+        title="Latest finished training jobs"
+        summary="Review the most recent local-training outcomes before you move into report details, manual retraining, or notebook downloads."
+        maxVisibleResults={4}
+      />
+
       <section className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
         <article className="card-surface p-6">
           <p className="eyebrow">Notebook Generation</p>
@@ -243,7 +327,7 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
                 type="button"
                 onClick={() => void handleNotebookDownload(mode)}
                 disabled={downloadingMode !== null}
-                title={`Download the ${mode.replaceAll('_', ' ')} training notebook for Colab.`}
+                aria-label={`Download the ${mode.replaceAll('_', ' ')} training notebook for Colab.`}
                 className="rounded-full border border-teal/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-teal transition hover:bg-teal/10 disabled:cursor-wait disabled:opacity-60"
               >
                 {downloadingMode === mode
@@ -277,7 +361,7 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
                 type="button"
                 onClick={() => setConfirmingRetrain(true)}
                 disabled={retrainingProgress.status === 'starting' || retrainingProgress.status === 'running'}
-                title={`Prepare a new retraining run for ${stock.id}.`}
+                aria-label={`Prepare a new retraining run for ${stock.id}.`}
                 className="rounded-full border border-amber/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber transition hover:bg-amber/10 disabled:cursor-wait disabled:opacity-60"
               >
                 Retrain {stock.id}
@@ -290,7 +374,7 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
                     setConfirmingRetrain(false)
                     void retrainingProgress.start()
                   }}
-                  title={`Start retraining for ${stock.display_name}.`}
+                  aria-label={`Start retraining for ${stock.display_name}.`}
                   className="rounded-full border border-teal/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-teal transition hover:bg-teal/10"
                 >
                   Confirm retraining
@@ -298,7 +382,7 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
                 <button
                   type="button"
                   onClick={() => setConfirmingRetrain(false)}
-                  title="Cancel the pending retraining confirmation."
+                  aria-label="Cancel the pending retraining confirmation."
                   className="rounded-full border border-stroke/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted transition hover:border-teal/35 hover:text-teal"
                 >
                   Cancel

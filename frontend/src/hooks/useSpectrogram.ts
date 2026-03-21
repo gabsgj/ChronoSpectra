@@ -54,13 +54,16 @@ export const useSpectrogram = ({
   )
 
   const fetchSpectrogram = useEffectEvent(async (signal: AbortSignal) => {
-    setState((currentState) => ({
-      ...currentState,
-      isLoading: currentState.data === null,
-      isRefreshing: currentState.data !== null,
-      error: null,
-      hint: null,
-    }))
+    setState((currentState) => {
+      const hasMatchingData = currentState.data?.stock_id === stockId
+      return {
+        data: hasMatchingData ? currentState.data : null,
+        isLoading: !hasMatchingData,
+        isRefreshing: hasMatchingData,
+        error: null,
+        hint: null,
+      }
+    })
 
     try {
       const data = await apiClient.getSpectrogram(stockId, {
@@ -83,13 +86,16 @@ export const useSpectrogram = ({
         return
       }
       const formattedError = formatApiError(error, 'Unable to load spectrogram data.')
-      setState((currentState) => ({
-        data: currentState.data,
-        error: formattedError.error,
-        hint: formattedError.hint,
-        isLoading: false,
-        isRefreshing: false,
-      }))
+      setState((currentState) => {
+        const hasMatchingData = currentState.data?.stock_id === stockId
+        return {
+          data: hasMatchingData ? currentState.data : null,
+          error: formattedError.error,
+          hint: formattedError.hint,
+          isLoading: false,
+          isRefreshing: false,
+        }
+      })
     }
   })
 

@@ -77,63 +77,63 @@
       "model": {
         "retrain_interval_days": 30,
         "prediction_horizon_days": 5,
-        "training_data_years": 5
+        "training_data_years": 20
       }
     },
     {
-      "id": "TCS",
-      "ticker": "TCS.NS",
-      "display_name": "Tata Consultancy Services",
+      "id": "LT",
+      "ticker": "LT.NS",
+      "display_name": "Larsen & Toubro",
       "exchange": "NSE",
-      "sector": "Technology",
+      "sector": "Engineering",
       "color": "#4C9AFF",
       "enabled": true,
       "model": {
         "retrain_interval_days": 30,
         "prediction_horizon_days": 5,
-        "training_data_years": 5
+        "training_data_years": 20
       }
     },
     {
-      "id": "HDFCBANK",
-      "ticker": "HDFCBANK.NS",
-      "display_name": "HDFC Bank",
+      "id": "ADANIENT",
+      "ticker": "ADANIENT.NS",
+      "display_name": "Adani Enterprises",
       "exchange": "NSE",
-      "sector": "Banking",
+      "sector": "Conglomerate",
       "color": "#FFB020",
       "enabled": true,
       "model": {
         "retrain_interval_days": 30,
         "prediction_horizon_days": 5,
-        "training_data_years": 5
+        "training_data_years": 20
       }
     },
     {
-      "id": "INFY",
-      "ticker": "INFY.NS",
-      "display_name": "Infosys",
+      "id": "HAL",
+      "ticker": "HAL.NS",
+      "display_name": "Hindustan Aeronautics",
       "exchange": "NSE",
-      "sector": "Technology",
+      "sector": "Aerospace & Defense",
       "color": "#A06DFF",
       "enabled": true,
       "model": {
         "retrain_interval_days": 30,
         "prediction_horizon_days": 5,
-        "training_data_years": 5
+        "training_data_years": 7
       }
     },
     {
-      "id": "WIPRO",
-      "ticker": "WIPRO.NS",
-      "display_name": "Wipro",
+      "id": "RECLTD",
+      "ticker": "RECLTD.NS",
+      "display_name": "REC Limited",
       "exchange": "NSE",
-      "sector": "Technology",
+      "sector": "Financial Services",
       "color": "#FF7A59",
       "enabled": true,
       "model": {
         "retrain_interval_days": 30,
         "prediction_horizon_days": 5,
-        "training_data_years": 5
+        "training_data_years": 16
       }
     }
   ],
@@ -165,13 +165,13 @@
       "val": 0.15,
       "test": 0.15
     },
-    "epochs": 50,
+    "epochs": 100,
     "batch_size": 32,
     "learning_rate": 0.001,
     "split_strategy": "time_based"
   },
   "retraining": {
-    "enabled": true,
+    "enabled": false,
     "check_interval_hours": 6,
     "strategy": "scheduled",
     "drift_threshold_multiplier": 1.5,

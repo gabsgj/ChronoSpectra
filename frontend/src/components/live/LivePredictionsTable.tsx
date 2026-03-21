@@ -39,6 +39,7 @@ export const LivePredictionsTable = ({
             <thead>
               <tr className="border-b border-stroke/70 text-xs uppercase tracking-[0.18em] text-muted">
                 <th className="pb-3 pr-4 font-medium">Timestamp</th>
+                <th className="pb-3 pr-4 font-medium">Target</th>
                 <th className="pb-3 pr-4 font-medium">Actual</th>
                 <th className="pb-3 pr-4 font-medium">Predicted</th>
                 <th className="pb-3 pr-4 font-medium">Spread</th>
@@ -50,6 +51,11 @@ export const LivePredictionsTable = ({
                 <tr key={`${point.timestamp}-${point.predicted}`} className="border-b border-stroke/50">
                   <td className="py-3 pr-4 text-muted">
                     {new Date(point.timestamp).toLocaleString()}
+                  </td>
+                  <td className="py-3 pr-4 text-muted">
+                    {point.prediction_target_at
+                      ? new Date(point.prediction_target_at).toLocaleString()
+                      : 'Waiting'}
                   </td>
                   <td className="py-3 pr-4 text-ink">
                     {formatCurrency(point.actual)}
@@ -67,6 +73,9 @@ export const LivePredictionsTable = ({
                   </td>
                   <td className="py-3 text-muted">
                     {point.prediction_mode}
+                    {point.prediction_horizon_days
+                      ? ` | ${point.prediction_horizon_days}d`
+                      : ''}
                   </td>
                 </tr>
               ))}

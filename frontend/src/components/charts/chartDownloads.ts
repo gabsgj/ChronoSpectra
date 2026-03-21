@@ -35,7 +35,9 @@ export const downloadRowsAsCsv = (rows: ExportRow[], filename: string) => {
   const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   triggerDownload(url, filename)
-  URL.revokeObjectURL(url)
+  window.setTimeout(() => {
+    URL.revokeObjectURL(url)
+  }, 1000)
 }
 
 export const downloadJson = (payload: unknown, filename: string) => {
@@ -44,7 +46,9 @@ export const downloadJson = (payload: unknown, filename: string) => {
   })
   const url = URL.createObjectURL(blob)
   triggerDownload(url, filename)
-  URL.revokeObjectURL(url)
+  window.setTimeout(() => {
+    URL.revokeObjectURL(url)
+  }, 1000)
 }
 
 const resolveSvgDimensions = (svg: SVGSVGElement) => {

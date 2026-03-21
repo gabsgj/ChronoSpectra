@@ -21,11 +21,11 @@ export const LiveStockSelector = ({
             type="button"
             onClick={() => onSelect(stock.id)}
             className={[
-              'card-surface min-w-[13rem] p-4 text-left transition',
+              'card-surface basis-full p-4 text-left transition sm:min-w-[13rem] sm:basis-auto',
               isActive ? '' : 'hover:border-teal/30',
             ].join(' ')}
             aria-pressed={isActive}
-            title={`Load the live workspace for ${stock.display_name}.`}
+            aria-label={`Load the live workspace for ${stock.display_name}.`}
             style={
               isActive
                 ? {
@@ -51,6 +51,12 @@ export const LiveStockSelector = ({
                 </p>
               </div>
               <ExchangeBadge exchange={stock.exchange} />
+            </div>
+            <div className="mt-4 flex items-center justify-between gap-3 text-xs uppercase tracking-[0.18em] text-muted">
+              <span>{isActive ? 'Active stream' : 'Open live workspace'}</span>
+              <span className={isActive ? 'text-teal' : ''}>
+                {isActive ? 'Selected' : 'View'}
+              </span>
             </div>
           </button>
         )

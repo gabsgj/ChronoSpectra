@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from 'react'
 import { getStockColor } from '../../config/stocksConfig'
 import type { ThemeMode, TrackPoint } from '../../types'
 import { getChartColors } from './getChartColors'
+import { getSvgCoordinates } from './getSvgCoordinates'
 import { TrackChartCard } from './TrackChartCard'
 
 interface ComparisonSeries {
@@ -34,11 +35,19 @@ interface NormalizedSeries extends ComparisonSeries {
   normalizedPoints: NormalizedPoint[]
 }
 
+interface HoveredEntry {
+  color: string | undefined
+  id: string
+  label: string
+  point: NormalizedPoint
+}
+
 const CHART_WIDTH = 920
 const CHART_HEIGHT = 360
 const PADDING = { top: 26, right: 34, bottom: 54, left: 64 }
+const FALLBACK_END_TIMESTAMP = 86_400_000
 
-const normalizeSeries = (points: TrackPoint[]) => {
+const normalizeSeries = (points: TrackPoint[]): NormalizedPoint[] => {
   if (points.length === 0) {
     return []
   }
@@ -71,8 +80,8 @@ const buildPath = (
 
   return points
     .map((point, index) => {
-      const x = xScale(new Date(point.timestampMs))
-      const y = yScale(point.normalizedValue)
+      const x = Number(xScale(new Date(point.timestampMs)))
+      const y = Number(yScale(point.normalizedValue))
       return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`
     })
     .join(' ')
@@ -106,7 +115,7 @@ const NormalizedComparisonPlot = ({
   chartHeightClass = 'h-[24rem]',
 }: NormalizedComparisonPlotProps) => {
   const colors = getChartColors(theme)
-  const wrapperRef = useRef<HTMLDivElement | null>(null)
+  const svgRef = useRef<SVGSVGElement | null>(null)
   const [hoveredTimestampMs, setHoveredTimestampMs] = useState<number | null>(null)
   const allValues = normalizedSeries.flatMap((entry) =>
     entry.normalizedPoints.map((point) => point.normalizedValue),
@@ -122,14 +131,14 @@ const NormalizedComparisonPlot = ({
   const maxValue = Math.max(baseMaxValue, 100) + valuePadding
   const xScale = scaleTime()
     .domain([
-      new Date(minTimestamp ?? Date.now() - 86_400_000),
-      new Date(maxTimestamp ?? Date.now()),
+      new Date(minTimestamp ?? 0),
+      new Date(maxTimestamp ?? FALLBACK_END_TIMESTAMP),
     ])
     .range([PADDING.left, CHART_WIDTH - PADDING.right])
   const yScale = scaleLinear()
     .domain([minValue, maxValue])
     .range([CHART_HEIGHT - PADDING.bottom, PADDING.top])
-  const hoveredEntries = hoveredTimestampMs
+  const hoveredEntries: HoveredEntry[] = hoveredTimestampMs
     ? normalizedSeries
         .map((entry) => {
           const point = findNearestPoint(entry.normalizedPoints, hoveredTimestampMs)
@@ -143,16 +152,7 @@ const NormalizedComparisonPlot = ({
             point,
           }
         })
-        .filter(
-          (
-            entry,
-          ): entry is {
-            color?: string
-            id: string
-            label: string
-            point: NormalizedPoint
-          } => entry !== null,
-        )
+        .filter((entry): entry is HoveredEntry => entry !== null)
     : []
   const referencePoint = hoveredEntries[0]?.point ?? null
   const hoverX = referencePoint
@@ -160,21 +160,21 @@ const NormalizedComparisonPlot = ({
     : null
 
   const updateHover = (clientX: number) => {
-    const bounds = wrapperRef.current?.getBoundingClientRect()
-    if (!bounds) {
+    const coordinates = getSvgCoordinates(svgRef.current, clientX, 0)
+    if (!coordinates) {
       return
     }
 
-    const relativeX = Math.min(Math.max(clientX - bounds.left, 0), bounds.width)
-    const ratio = relativeX / Math.max(bounds.width, 1)
-    const hoveredDate = xScale.invert(
-      PADDING.left + ratio * (CHART_WIDTH - PADDING.left - PADDING.right),
+    const clampedChartX = Math.min(
+      Math.max(coordinates.x, PADDING.left),
+      CHART_WIDTH - PADDING.right,
     )
+    const hoveredDate = xScale.invert(clampedChartX)
     setHoveredTimestampMs(hoveredDate.getTime())
   }
 
   return (
-    <div ref={wrapperRef} className="relative space-y-4">
+    <div className="relative space-y-4">
       <div className="flex flex-wrap gap-3 text-xs text-muted">
         {normalizedSeries.map((entry) => (
           <span key={entry.id} className="inline-flex items-center gap-2">
@@ -190,6 +190,7 @@ const NormalizedComparisonPlot = ({
       </div>
 
       <svg
+        ref={svgRef}
         viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
         className={`${chartHeightClass} w-full overflow-hidden rounded-[24px]`}
         role="img"
@@ -264,8 +265,8 @@ const NormalizedComparisonPlot = ({
         ) : null}
 
         {hoveredEntries.map((entry) => {
-          const x = xScale(new Date(entry.point.timestampMs))
-          const y = yScale(entry.point.normalizedValue)
+          const x = Number(xScale(new Date(entry.point.timestampMs)))
+          const y = Number(yScale(entry.point.normalizedValue))
           return (
             <circle
               key={`${entry.id}-${entry.point.timestamp}`}
@@ -333,7 +334,7 @@ export const NormalizedComparisonChart = ({
 }: NormalizedComparisonChartProps) => {
   const normalizedSeries = useMemo<NormalizedSeries[]>(() => {
     return series
-      .map((entry) => {
+      .map<NormalizedSeries | null>((entry) => {
         const normalizedPoints = normalizeSeries(entry.points)
         if (normalizedPoints.length === 0) {
           return null

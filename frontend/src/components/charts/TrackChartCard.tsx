@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import { ChartOverlayModal } from './ChartOverlayModal'
 import {
@@ -8,6 +8,26 @@ import {
   type ExportRow,
 } from './chartDownloads'
 import { HoverHint } from '../ui/HoverHint'
+
+const FullscreenIcon = () => (
+  <svg
+    viewBox="0 0 20 20"
+    className="h-4 w-4"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.7"
+    aria-hidden="true"
+  >
+    <path d="M7 3.5H3.5V7" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M13 3.5h3.5V7" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M7 16.5H3.5V13" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M13 16.5h3.5V13" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M7.75 7.75 3.5 3.5" strokeLinecap="round" />
+    <path d="M12.25 7.75 16.5 3.5" strokeLinecap="round" />
+    <path d="M7.75 12.25 3.5 16.5" strokeLinecap="round" />
+    <path d="M12.25 12.25 16.5 16.5" strokeLinecap="round" />
+  </svg>
+)
 
 interface TrackChartCardProps {
   title: string
@@ -25,6 +45,16 @@ interface TrackChartCardProps {
   exportJson?: unknown
 }
 
+type ExportFeedback =
+  | {
+      tone: 'success' | 'error'
+      message: string
+    }
+  | null
+
+const exportButtonClassName =
+  'inline-flex h-10 items-center justify-center rounded-full border border-stroke/70 bg-card/82 px-3.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted transition hover:border-teal/45 hover:bg-card hover:text-teal disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-stroke/70 disabled:hover:bg-card/82 disabled:hover:text-muted'
+
 export const TrackChartCard = ({
   title,
   detail,
@@ -40,15 +70,30 @@ export const TrackChartCard = ({
   exportRows,
   exportJson,
 }: TrackChartCardProps) => {
-  const cardRef = useRef<HTMLElement | null>(null)
+  const contentRef = useRef<HTMLDivElement | null>(null)
   const [isExpanded, setIsExpanded] = useState(false)
+  const [exportFeedback, setExportFeedback] = useState<ExportFeedback>(null)
+
+  useEffect(() => {
+    if (!exportFeedback) {
+      return
+    }
+
+    const timer = window.setTimeout(() => {
+      setExportFeedback(null)
+    }, 2200)
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [exportFeedback])
 
   let content: ReactNode
 
   if (loading) {
     content = (
       <div className="flex min-h-[16rem] items-center justify-center text-sm text-muted">
-        Loading live market data...
+        Loading chart data...
       </div>
     )
   } else if (error) {
@@ -62,7 +107,7 @@ export const TrackChartCard = ({
         <button
           type="button"
           onClick={onRetry}
-          title="Retry loading this chart."
+          aria-label="Retry loading this chart."
           className="rounded-full border border-amber/35 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber transition hover:bg-amber/10"
         >
           Retry
@@ -79,87 +124,173 @@ export const TrackChartCard = ({
     content = children
   }
 
+  const canExportPng = Boolean(downloadFileBase) && !loading && !empty && !error
+  const canExportCsv =
+    canExportPng && Array.isArray(exportRows) && exportRows.length > 0
+  const canExportJson =
+    canExportPng &&
+    (typeof exportJson !== 'undefined' ||
+      (Array.isArray(exportRows) && exportRows.length > 0))
+
+  const resolveChartSvg = () => {
+    const svgCandidates = [
+      ...(contentRef.current?.querySelectorAll('svg') ?? []),
+    ].filter((candidate): candidate is SVGSVGElement => candidate instanceof SVGSVGElement)
+
+    if (svgCandidates.length === 0) {
+      return null
+    }
+
+    return svgCandidates.reduce<SVGSVGElement>((largest, current) => {
+      const currentBounds = current.getBoundingClientRect()
+      const largestBounds = largest.getBoundingClientRect()
+      const currentArea = currentBounds.width * currentBounds.height
+      const largestArea = largestBounds.width * largestBounds.height
+
+      return currentArea >= largestArea ? current : largest
+    }, svgCandidates[0])
+  }
+
   const handleScreenshotDownload = async () => {
-    const svg = cardRef.current?.querySelector('svg')
-    if (!(svg instanceof SVGSVGElement) || !downloadFileBase) {
+    if (!downloadFileBase || !canExportPng) {
+      setExportFeedback({
+        message: 'PNG export is unavailable until the chart finishes loading.',
+        tone: 'error',
+      })
       return
     }
-    await downloadSvgAsPng(svg, `${downloadFileBase}.png`)
+
+    const svg = resolveChartSvg()
+    if (!svg) {
+      setExportFeedback({
+        message: 'No chart graphic was found to export.',
+        tone: 'error',
+      })
+      return
+    }
+
+    try {
+      await downloadSvgAsPng(svg, `${downloadFileBase}.png`)
+      setExportFeedback({
+        message: 'PNG downloaded.',
+        tone: 'success',
+      })
+    } catch {
+      setExportFeedback({
+        message: 'PNG export failed.',
+        tone: 'error',
+      })
+    }
   }
 
   const handleCsvDownload = () => {
     if (!downloadFileBase || !exportRows || exportRows.length === 0) {
+      setExportFeedback({
+        message: 'CSV export needs visible chart rows first.',
+        tone: 'error',
+      })
       return
     }
+
     downloadRowsAsCsv(exportRows, `${downloadFileBase}.csv`)
+    setExportFeedback({
+      message: 'CSV downloaded.',
+      tone: 'success',
+    })
   }
 
   const handleJsonDownload = () => {
-    if (!downloadFileBase) {
+    if (!downloadFileBase || !canExportJson) {
+      setExportFeedback({
+        message: 'JSON export is unavailable for this chart right now.',
+        tone: 'error',
+      })
       return
     }
+
     downloadJson(exportJson ?? exportRows ?? [], `${downloadFileBase}.json`)
+    setExportFeedback({
+      message: 'JSON downloaded.',
+      tone: 'success',
+    })
   }
 
   return (
     <>
       <article
-        ref={cardRef}
-        className="card-surface flex h-full min-w-0 flex-col overflow-hidden p-5 lg:p-6"
+        className="card-surface relative isolate flex h-full min-w-0 flex-col overflow-visible p-5 lg:p-6"
       >
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <p className="eyebrow">{title}</p>
-              <HoverHint label={hint ?? detail} />
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <p className="eyebrow">{title}</p>
+                <HoverHint label={hint ?? detail} />
+              </div>
+              <p className="text-sm leading-6 text-muted">{detail}</p>
             </div>
-            <p className="text-sm leading-6 text-muted">{detail}</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
-            <button
-              type="button"
-              onClick={() => setIsExpanded(true)}
-              className="rounded-full border border-stroke/70 px-3 py-2 transition hover:border-teal/45 hover:text-teal"
-            >
-              Enlarge
-            </button>
-            {downloadFileBase ? (
-              <button
-                type="button"
-                onClick={() => void handleScreenshotDownload()}
-                className="rounded-full border border-stroke/70 px-3 py-2 transition hover:border-teal/45 hover:text-teal"
+            <div className="flex min-w-0 flex-col items-end gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
+                <button
+                  type="button"
+                  onClick={() => setIsExpanded(true)}
+                  aria-label={`Open ${title} in fullscreen.`}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-stroke/70 bg-card/82 transition hover:border-teal/45 hover:bg-card hover:text-teal"
+                >
+                  <FullscreenIcon />
+                  <span className="sr-only">Open fullscreen chart</span>
+                </button>
+                {downloadFileBase ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleScreenshotDownload()}
+                    disabled={!canExportPng}
+                    className={exportButtonClassName}
+                  >
+                    PNG
+                  </button>
+                ) : null}
+                {downloadFileBase ? (
+                  <button
+                    type="button"
+                    onClick={handleCsvDownload}
+                    disabled={!canExportCsv}
+                    className={exportButtonClassName}
+                  >
+                    CSV
+                  </button>
+                ) : null}
+                {downloadFileBase ? (
+                  <button
+                    type="button"
+                    onClick={handleJsonDownload}
+                    disabled={!canExportJson}
+                    className={exportButtonClassName}
+                  >
+                    JSON
+                  </button>
+                ) : null}
+              </div>
+              <p
+                aria-live="polite"
+                className={[
+                  'min-h-[1.25rem] text-right text-[11px] font-medium',
+                  exportFeedback?.tone === 'error' ? 'text-amber' : 'text-teal',
+                ].join(' ')}
               >
-                PNG
-              </button>
-            ) : null}
-            {downloadFileBase && exportRows && exportRows.length > 0 ? (
-              <button
-                type="button"
-                onClick={handleCsvDownload}
-                className="rounded-full border border-stroke/70 px-3 py-2 transition hover:border-teal/45 hover:text-teal"
-              >
-                CSV
-              </button>
-            ) : null}
-            {downloadFileBase && (exportJson || exportRows) ? (
-              <button
-                type="button"
-                onClick={handleJsonDownload}
-                className="rounded-full border border-stroke/70 px-3 py-2 transition hover:border-teal/45 hover:text-teal"
-              >
-                JSON
-              </button>
-            ) : null}
+                {exportFeedback?.message ?? ' '}
+              </p>
+            </div>
           </div>
         </div>
-      </div>
-      <div className="mt-5 min-w-0 flex-1">{content}</div>
-      {footer ? (
-        <div className="mt-4 border-t border-stroke/60 pt-4">
-          {footer}
+        <div ref={contentRef} className="relative z-0 mt-5 min-w-0 flex-1">
+          {content}
         </div>
-      ) : null}
+        {footer ? (
+          <div className="mt-4 border-t border-stroke/60 pt-4">
+            {footer}
+          </div>
+        ) : null}
       </article>
 
       <ChartOverlayModal

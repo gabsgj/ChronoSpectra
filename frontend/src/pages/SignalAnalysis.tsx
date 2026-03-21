@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 
 import { DominantFrequencyTimelineChart } from '../components/charts/DominantFrequencyTimelineChart'
 import { FrequencySpectrumChart } from '../components/charts/FrequencySpectrumChart'
+import { SignalSeriesChart } from '../components/charts/SignalSeriesChart'
 import { SpectrogramHeatmap } from '../components/charts/SpectrogramHeatmap'
 import { SpectrogramEnergyTimelineChart } from '../components/charts/SpectrogramEnergyTimelineChart'
 import { SignalParameterExplorer } from '../components/signal/SignalParameterExplorer'
@@ -121,6 +122,14 @@ const formatCycleLength = (frequencyValue: number | null) => {
   return `${days.toFixed(1)} trading days`
 }
 
+const formatRawSignal = (value: number) => {
+  return new Intl.NumberFormat('en-IN', {
+    maximumFractionDigits: 2,
+  }).format(value)
+}
+
+const formatNormalizedSignal = (value: number) => value.toFixed(3)
+
 export default function SignalAnalysis() {
   const { id = '' } = useParams()
   const stock = getStockById(id)
@@ -134,7 +143,7 @@ export default function SignalAnalysis() {
     )
   }
 
-  return <SignalAnalysisContent stock={stock} />
+  return <SignalAnalysisContent key={stock.id} stock={stock} />
 }
 
 interface SignalAnalysisContentProps {
@@ -211,6 +220,26 @@ const SignalAnalysisContent = ({ stock }: SignalAnalysisContentProps) => {
 
     return frequency[bestIndex] ?? null
   }, [spectrum.data?.amplitude, spectrum.data?.frequency])
+  const rawSignalPoints = useMemo(() => {
+    if (!spectrogram.data) {
+      return []
+    }
+
+    return spectrogram.data.signal_timestamps.map((timestamp, index) => ({
+      timestamp,
+      value: spectrogram.data?.raw_signal[index] ?? 0,
+    }))
+  }, [spectrogram.data])
+  const normalizedSignalPoints = useMemo(() => {
+    if (!spectrogram.data) {
+      return []
+    }
+
+    return spectrogram.data.signal_timestamps.map((timestamp, index) => ({
+      timestamp,
+      value: spectrogram.data?.normalized_signal[index] ?? 0,
+    }))
+  }, [spectrogram.data])
 
   return (
     <div className="space-y-8">
@@ -218,9 +247,10 @@ const SignalAnalysisContent = ({ stock }: SignalAnalysisContentProps) => {
         <p className="eyebrow">Signal Analysis</p>
         <h2 className="text-3xl text-ink">{stock.display_name}</h2>
         <p className="max-w-3xl text-sm leading-7 text-muted">
-          Inspect the stock in frequency space. The page now moves from the
-          biggest heatmap first into supporting trend, energy, and regime graphs
-          so the spectrogram reads as a workflow instead of isolated widgets.
+          Inspect the stock from time domain into frequency domain. The
+          frequency-amplitude spectrum leads the workflow because it is the
+          clearest first pass at dominant cycles before you drill into the
+          heatmap and regime summaries.
         </p>
         <StockSelector activeStockId={stock.id} basePath="/signal" />
         <PageGuide
@@ -228,15 +258,15 @@ const SignalAnalysisContent = ({ stock }: SignalAnalysisContentProps) => {
           summary="This page helps you move from 'what happened' to 'what frequency behavior might explain it' without needing signal-processing background."
           steps={[
             'Choose a transform first. STFT is the easiest starting point because it balances time and frequency clearly.',
-            'Read the large heatmap next. Bright areas mean stronger energy at that time and frequency band.',
-            'Use the smaller timeline charts underneath to simplify the heatmap into easier summaries of total energy and dominant frequency.',
+            'Read the frequency-amplitude chart first. It shows which repeating cycles matter most in the selected signal.',
+            'Use the raw and normalized time-domain charts next, then the heatmap, then the derived energy and dominant-frequency summaries underneath.',
           ]}
           nextHref="/explainer"
           nextLabel="Open explainer"
         />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[0.88fr_1.12fr]">
+      <section className="grid gap-4 2xl:grid-cols-[0.88fr_1.12fr]">
         <SignalTransformToggle
           activeTransform={activeTransform}
           availableTransforms={availableTransforms}
@@ -278,7 +308,7 @@ const SignalAnalysisContent = ({ stock }: SignalAnalysisContentProps) => {
         />
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         <MetricCard
           label="Active Transform"
           value={activeTransform.toUpperCase()}
@@ -303,6 +333,68 @@ const SignalAnalysisContent = ({ stock }: SignalAnalysisContentProps) => {
           detail="Approximate period implied by the strongest FFT band."
           hint="A simple estimate of the strongest repeating cycle seen in the frequency spectrum."
         />
+        <MetricCard
+          label="Normalization"
+          value="Min-max"
+          detail="The backend currently scales the close-price signal into a 0 to 1 range before transforms and prediction."
+          hint="Min-max normalization is active in this signal pipeline. A z-score utility exists in the backend, but it is not the active transform input here."
+        />
+        <MetricCard
+          label="STFT Window"
+          value={`${stftParameters.window_length} samples`}
+          detail="Each STFT column uses this many daily samples from the normalized signal."
+          hint="A window length of 64 means one STFT slice looks at 64 trading-day samples at a time."
+        />
+      </section>
+
+      <section className="min-w-0">
+        <FrequencySpectrumChart
+          frequency={spectrum.data?.frequency ?? []}
+          amplitude={spectrum.data?.amplitude ?? []}
+          loading={spectrum.isLoading}
+          error={spectrum.error}
+          hint={spectrum.hint}
+          onRetry={spectrum.retry}
+          theme={theme}
+        />
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-2">
+        <div className="min-w-0">
+          <SignalSeriesChart
+            title="Time-Domain Price Signal"
+            detail="The raw close-price series in the time domain. Use this before the transform views so you stay anchored in the original price movement."
+            points={rawSignalPoints}
+            loading={spectrogram.isLoading}
+            error={spectrogram.error}
+            hint={spectrogram.hint}
+            onRetry={spectrogram.retry}
+            theme={theme}
+            tone="teal"
+            formatValue={formatRawSignal}
+            valueKey="raw_close"
+          />
+        </div>
+        <div className="min-w-0">
+          <SignalSeriesChart
+            title="Normalized Signal"
+            detail="The min-max normalized series fed into the transform pipeline. This is what the FFT, STFT, CWT, HHT, and prediction models actually consume."
+            points={normalizedSignalPoints}
+            loading={spectrogram.isLoading}
+            error={spectrogram.error}
+            hint={spectrogram.hint}
+            onRetry={spectrogram.retry}
+            theme={theme}
+            tone="amber"
+            formatValue={formatNormalizedSignal}
+            valueKey="normalized_value"
+            footer={
+              <p className="text-xs leading-5 text-muted">
+                Backend status: min-max normalization is active here; z-score is available but not currently selected in the pipeline.
+              </p>
+            }
+          />
+        </div>
       </section>
 
       <section className="min-w-0">
@@ -316,18 +408,7 @@ const SignalAnalysisContent = ({ stock }: SignalAnalysisContentProps) => {
         />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-3">
-        <div className="min-w-0">
-          <FrequencySpectrumChart
-            frequency={spectrum.data?.frequency ?? []}
-            amplitude={spectrum.data?.amplitude ?? []}
-            loading={spectrum.isLoading}
-            error={spectrum.error}
-            hint={spectrum.hint}
-            onRetry={spectrum.retry}
-            theme={theme}
-          />
-        </div>
+      <section className="grid gap-4 xl:grid-cols-2">
         <div className="min-w-0">
           <SpectrogramEnergyTimelineChart
             data={spectrogram.data}

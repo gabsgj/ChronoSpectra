@@ -104,6 +104,7 @@ export default function StockDetail() {
 
   return (
     <StockDetailContent
+      key={stock.id}
       stock={stock}
       dailyRange={dailyRange}
       onDailyRangeChange={setDailyRange}
@@ -246,7 +247,7 @@ const StockDetailContent = ({
                   key={option}
                   type="button"
                   onClick={() => onDailyRangeChange(option)}
-                  title={`Show the daily charts using the ${option} window.`}
+                  aria-label={`Show the daily charts using the ${option} window.`}
                   className={[
                     'rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] transition',
                     isActive

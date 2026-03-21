@@ -17,7 +17,10 @@ from models.per_stock_cnn import PerStockCNN
 from models.unified_cnn import UnifiedCNN
 from models.unified_cnn_with_embeddings import UnifiedCNNWithEmbeddings
 
-MODEL_NOT_TRAINED_HINT = "Run the Colab notebook and place .pth in model_store/"
+MODEL_NOT_TRAINED_HINT = (
+    "Trigger local training or run the Colab notebook to generate the checkpoint in "
+    "model_store/."
+)
 SUPPORTED_MODEL_MODES = {"per_stock", "unified", "unified_with_embeddings", "both"}
 
 

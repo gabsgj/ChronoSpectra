@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title=str(APP_CONFIG.get("app_name", "FinSpectra API")),
+    title=str(APP_CONFIG.get("app_name", "ChronoSpectra API")),
     version=str(APP_CONFIG.get("version", "1.2.0")),
     lifespan=lifespan,
 )

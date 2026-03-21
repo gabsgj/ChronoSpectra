@@ -25,13 +25,16 @@ export const useModelComparison = (stockId: string) => {
   const [requestVersion, setRequestVersion] = useState(0)
 
   const fetchModelComparison = useEffectEvent(async (signal: AbortSignal) => {
-    setState((currentState) => ({
-      ...currentState,
-      isLoading: currentState.data === null,
-      isRefreshing: currentState.data !== null,
-      error: null,
-      hint: null,
-    }))
+    setState((currentState) => {
+      const hasMatchingData = currentState.data?.stock_id === stockId
+      return {
+        data: hasMatchingData ? currentState.data : null,
+        isLoading: !hasMatchingData,
+        isRefreshing: hasMatchingData,
+        error: null,
+        hint: null,
+      }
+    })
 
     try {
       const data = await apiClient.getModelComparison(stockId, signal)
@@ -50,13 +53,16 @@ export const useModelComparison = (stockId: string) => {
         return
       }
       const formattedError = formatApiError(error, 'Unable to load model metrics.')
-      setState((currentState) => ({
-        data: currentState.data,
-        error: formattedError.error,
-        hint: formattedError.hint,
-        isLoading: false,
-        isRefreshing: false,
-      }))
+      setState((currentState) => {
+        const hasMatchingData = currentState.data?.stock_id === stockId
+        return {
+          data: hasMatchingData ? currentState.data : null,
+          error: formattedError.error,
+          hint: formattedError.hint,
+          isLoading: false,
+          isRefreshing: false,
+        }
+      })
     }
   })
 

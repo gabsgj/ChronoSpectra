@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 
 import type { ThemeMode, TrackPoint } from '../../types'
 import { getChartColors } from './getChartColors'
+import { getSvgCoordinates } from './getSvgCoordinates'
 
 interface BarTrackChartProps {
   points: TrackPoint[]
@@ -23,7 +24,7 @@ export const BarTrackChart = ({
   formatValue,
   chartHeightClass = 'h-[21rem]',
 }: BarTrackChartProps) => {
-  const wrapperRef = useRef<HTMLDivElement | null>(null)
+  const svgRef = useRef<SVGSVGElement | null>(null)
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const colors = getChartColors(theme)
   const values = points.map((point) => point.value)
@@ -36,24 +37,37 @@ export const BarTrackChart = ({
     Math.max(points.length, 1)
   const hoveredPoint = hoveredIndex !== null ? points[hoveredIndex] : null
 
+  const findNearestBarIndex = (chartX: number) => {
+    let nearestIndex = 0
+    let nearestDistance = Number.POSITIVE_INFINITY
+
+    points.forEach((_, index) => {
+      const centerX = BAR_PADDING + index * (barWidth + BAR_GAP) + Math.max(barWidth, 14) / 2
+      const distance = Math.abs(centerX - chartX)
+      if (distance < nearestDistance) {
+        nearestDistance = distance
+        nearestIndex = index
+      }
+    })
+
+    return nearestIndex
+  }
+
   const updateHover = (clientX: number) => {
-    const bounds = wrapperRef.current?.getBoundingClientRect()
-    if (!bounds) {
+    const coordinates = getSvgCoordinates(svgRef.current, clientX, 0)
+    if (!coordinates) {
       return
     }
 
-    const relativeX = clientX - bounds.left
-    const chartWidth = bounds.width || 1
-    const xRatio = Math.min(Math.max(relativeX / chartWidth, 0), 1)
-    const nextIndex = Math.min(
-      Math.max(Math.floor(xRatio * points.length), 0),
-      Math.max(points.length - 1, 0),
+    const clampedChartX = Math.min(
+      Math.max(coordinates.x, BAR_PADDING),
+      CHART_WIDTH - BAR_PADDING,
     )
-    setHoveredIndex(nextIndex)
+    setHoveredIndex(findNearestBarIndex(clampedChartX))
   }
 
   return (
-    <div ref={wrapperRef} className="relative space-y-4">
+    <div className="relative space-y-4">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div>
           <p className="text-3xl font-semibold text-ink lg:text-4xl">
@@ -69,6 +83,7 @@ export const BarTrackChart = ({
       </div>
 
       <svg
+        ref={svgRef}
         viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
         className={`${chartHeightClass} w-full overflow-hidden rounded-[24px]`}
         role="img"

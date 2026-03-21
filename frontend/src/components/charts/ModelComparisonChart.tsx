@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from 'react'
 
 import type { ModelVariantResponse, ThemeMode } from '../../types'
 import { getChartColors } from './getChartColors'
+import { getSvgCoordinates } from './getSvgCoordinates'
 import { TrackChartCard } from './TrackChartCard'
 
 type MetricKey = 'mse' | 'rmse' | 'mae' | 'mape'
@@ -83,7 +84,7 @@ const ModelComparisonPlot = ({
   chartHeightClass = 'h-[22rem]',
 }: ModelComparisonPlotProps) => {
   const colors = getChartColors(theme)
-  const wrapperRef = useRef<HTMLDivElement | null>(null)
+  const svgRef = useRef<SVGSVGElement | null>(null)
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const drawableWidth = CHART_WIDTH - PADDING.left - PADDING.right
   const drawableHeight = CHART_HEIGHT - PADDING.top - PADDING.bottom
@@ -98,20 +99,40 @@ const ModelComparisonPlot = ({
   const hoveredDatum =
     hoveredIndex !== null ? chartData[hoveredIndex] ?? null : null
 
+  const findNearestBarIndex = (chartX: number) => {
+    let nearestIndex = 0
+    let nearestDistance = Number.POSITIVE_INFINITY
+
+    chartData.forEach((item, index) => {
+      const x = xScale(item.mode) ?? PADDING.left
+      const centerX = x + xScale.bandwidth() / 2
+      const distance = Math.abs(centerX - chartX)
+      if (distance < nearestDistance) {
+        nearestDistance = distance
+        nearestIndex = index
+      }
+    })
+
+    return nearestIndex
+  }
+
   const updateHover = (clientX: number) => {
-    const bounds = wrapperRef.current?.getBoundingClientRect()
-    if (!bounds || chartData.length === 0) {
+    const coordinates = getSvgCoordinates(svgRef.current, clientX, 0)
+    if (!coordinates || chartData.length === 0) {
       return
     }
 
-    const relativeX = Math.min(Math.max(clientX - bounds.left, 0), bounds.width)
-    const ratio = relativeX / Math.max(bounds.width, 1)
-    setHoveredIndex(Math.round(ratio * Math.max(chartData.length - 1, 0)))
+    const clampedChartX = Math.min(
+      Math.max(coordinates.x, PADDING.left),
+      CHART_WIDTH - PADDING.right,
+    )
+    setHoveredIndex(findNearestBarIndex(clampedChartX))
   }
 
   return (
-    <div ref={wrapperRef} className="relative space-y-4">
+    <div className="relative space-y-4">
       <svg
+        ref={svgRef}
         viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
         className={`${chartHeightClass} w-full overflow-hidden rounded-[24px]`}
         role="img"

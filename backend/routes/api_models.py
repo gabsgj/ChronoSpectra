@@ -33,6 +33,7 @@ class PredictionResponse(BaseModel):
     transform_name: str
     prediction_horizon_days: int
     as_of_timestamp: str
+    prediction_target_at: str
     latest_close: float
     predicted_price: float
     predicted_price_normalized: float
@@ -95,6 +96,8 @@ class TrainingStartResponse(BaseModel):
     run_id: str
     requested_stock_ids: list[str]
     total_stocks: int
+    total_jobs: int | None = None
+    planned_modes: list[str] = []
     started_at: str
 
 
@@ -104,9 +107,18 @@ class TrainingRuntimeResponse(BaseModel):
     started_at: str | None = None
     finished_at: str | None = None
     requested_stock_ids: list[str]
+    planned_modes: list[str] = []
+    job_labels: list[str] = []
     active_stock_id: str | None = None
+    active_mode: str | None = None
+    active_job_label: str | None = None
+    active_stage: str | None = None
+    active_stage_detail: str | None = None
+    active_stage_updated_at: str | None = None
     total_stocks: int
     completed_stocks: int
+    total_jobs: int | None = None
+    completed_jobs: int | None = None
     latest_event_id: int
     results: list[TrainingResultResponse]
 

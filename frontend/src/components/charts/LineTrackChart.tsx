@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 
 import type { ThemeMode, TrackPoint } from '../../types'
 import { getChartColors } from './getChartColors'
+import { getSvgCoordinates } from './getSvgCoordinates'
 
 interface LineTrackChartProps {
   points: TrackPoint[]
@@ -67,7 +68,7 @@ export const LineTrackChart = ({
   formatValue,
   chartHeightClass = 'h-[21rem]',
 }: LineTrackChartProps) => {
-  const wrapperRef = useRef<HTMLDivElement | null>(null)
+  const svgRef = useRef<SVGSVGElement | null>(null)
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const colors = getChartColors(theme)
   const values = points.map((point) => point.value)
@@ -94,20 +95,23 @@ export const LineTrackChart = ({
         ((hoveredPoint.value - minValue) / valueRange) * drawableHeight
 
   const updateHover = (clientX: number) => {
-    const bounds = wrapperRef.current?.getBoundingClientRect()
-    if (!bounds) {
+    const coordinates = getSvgCoordinates(svgRef.current, clientX, 0)
+    if (!coordinates) {
       return
     }
 
-    const relativeX = clientX - bounds.left
-    const chartWidth = bounds.width || 1
-    const normalizedX = Math.min(Math.max(relativeX / chartWidth, 0), 1)
+    const clampedChartX = Math.min(
+      Math.max(coordinates.x, PADDING_X),
+      CHART_WIDTH - PADDING_X,
+    )
+    const normalizedX =
+      (clampedChartX - PADDING_X) / Math.max(drawableWidth, 1)
     const nextIndex = Math.round(normalizedX * Math.max(points.length - 1, 0))
     setHoveredIndex(nextIndex)
   }
 
   return (
-    <div ref={wrapperRef} className="relative space-y-4">
+    <div className="relative space-y-4">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div>
           <p className="text-3xl font-semibold text-ink lg:text-4xl">
@@ -124,6 +128,7 @@ export const LineTrackChart = ({
       </div>
 
       <svg
+        ref={svgRef}
         viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
         className={`${chartHeightClass} w-full overflow-hidden rounded-[24px]`}
         role="img"

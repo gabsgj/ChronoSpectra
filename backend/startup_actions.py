@@ -110,6 +110,8 @@ async def _run_local_training(app: FastAPI, action_index: int) -> None:
         status="started",
         run_id=str(runtime_state["run_id"]),
         requested_stock_ids=list(runtime_state["requested_stock_ids"]),
+        planned_modes=list(runtime_state.get("planned_modes", [])),
+        total_jobs=int(runtime_state.get("total_jobs", runtime_state["total_stocks"])),
         finished_at=_utc_now_iso(),
     )
 

@@ -14,3 +14,10 @@ backend/*.pid
 frontend/*.log
 frontend/*.pid
 frontend/*.png
+
+archive/
+
+PROGRESS.md
+TASKS.md
+findings.md
+task_plan.md

@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 interface ChartOverlayModalProps {
   title: string
@@ -41,20 +42,25 @@ export function ChartOverlayModal({
     return null
   }
 
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[rgba(6,10,18,0.72)] p-4 backdrop-blur-sm sm:p-6">
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[90] bg-[rgba(6,10,18,0.78)] p-2 backdrop-blur-md sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${title} fullscreen chart`}
+    >
       <button
         type="button"
         aria-label="Close chart overlay"
-        className="absolute inset-0 cursor-default"
+        className="absolute inset-0"
         onClick={onClose}
       />
-      <section className="relative z-[71] flex max-h-[90svh] w-full max-w-[min(1420px,96vw)] flex-col overflow-hidden rounded-[28px] border border-stroke/70 bg-card/95 shadow-[0_32px_80px_-32px_rgba(0,0,0,0.55)]">
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-stroke/70 px-5 py-4 sm:px-6">
+      <section className="relative z-[91] flex h-full w-full flex-col overflow-hidden rounded-[32px] border border-stroke/70 bg-card/95 shadow-[0_32px_80px_-32px_rgba(0,0,0,0.58)]">
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-stroke/70 px-5 py-4 sm:px-7 sm:py-5">
           <div className="space-y-1">
-            <p className="eyebrow">Expanded Graph</p>
+            <p className="eyebrow">Fullscreen Graph</p>
             <h3 className="text-2xl text-ink">{title}</h3>
-            <p className="max-w-3xl text-sm leading-6 text-muted">{detail}</p>
+            <p className="max-w-4xl text-sm leading-6 text-muted">{detail}</p>
           </div>
           <button
             type="button"
@@ -64,8 +70,11 @@ export function ChartOverlayModal({
             Close
           </button>
         </div>
-        <div className="overflow-auto p-4 sm:p-6">{children}</div>
+        <div className="min-h-0 flex-1 overflow-auto px-3 py-3 sm:px-6 sm:py-5">
+          {children}
+        </div>
       </section>
-    </div>
+    </div>,
+    document.body,
   )
 }
