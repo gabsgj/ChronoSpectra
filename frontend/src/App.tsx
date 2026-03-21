@@ -1,0 +1,47 @@
+import { Suspense } from 'react'
+import { Outlet } from 'react-router-dom'
+
+import { MobileNav } from './components/layout/MobileNav'
+import { Footer } from './components/layout/Footer'
+import { Navbar } from './components/layout/Navbar'
+import { Sidebar } from './components/layout/Sidebar'
+import { useTheme } from './hooks/useTheme'
+
+/**
+ * Frontend decisions:
+ * - Config loads from the shared root `stocks.json` through `config/stocksConfig.ts`, keeping route and UI state config-driven.
+ * - Route metadata lives in one manifest so the router, sidebar, and mobile nav never drift apart.
+ * - Theme state persists in `localStorage`, follows system preference when unset, and toggles the `dark` class on `<html>`.
+ * - Active stock context lives in the URL for stock-specific pages, which keeps navigation and refresh behavior aligned.
+ * - Live data stays page-local so SSE only runs when the Live Testing route is mounted.
+ */
+function App() {
+  const { theme, toggle } = useTheme()
+
+  return (
+    <div className="relative min-h-screen overflow-x-clip bg-shell text-ink">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(circle_at_top_left,rgba(11,143,156,0.18),transparent_40%),radial-gradient(circle_at_top_right,rgba(194,124,44,0.12),transparent_36%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(60,198,207,0.14),transparent_40%),radial-gradient(circle_at_top_right,rgba(226,162,79,0.14),transparent_36%)]" />
+      <div className="relative mx-auto flex min-h-screen max-w-[1840px] gap-4 px-3 py-3 sm:px-4 sm:py-4 lg:gap-6 lg:px-6 xl:gap-8 xl:px-8">
+        <Sidebar />
+        <div className="flex min-w-0 flex-1 flex-col gap-6">
+          <Navbar theme={theme} onToggleTheme={toggle} />
+          <MobileNav />
+          <main className="panel-surface min-h-[calc(100svh-10rem)] min-w-0 p-4 sm:p-5 lg:p-8 xl:p-9">
+            <Suspense
+              fallback={
+                <div className="card-surface flex min-h-[20rem] items-center justify-center p-6 text-sm text-muted">
+                  Loading route shell...
+                </div>
+              }
+            >
+              <Outlet />
+            </Suspense>
+          </main>
+          <Footer />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default App

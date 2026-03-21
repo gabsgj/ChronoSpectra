@@ -1,0 +1,180 @@
+{
+  "app_name": "ChronoSpectra",
+  "version": "1.2.0",
+  "model_mode": "both",
+  "local_training": {
+    "enabled": true,
+    "auto_place_models": true,
+    "_note": "When enabled, FastAPI trains models locally using the training pipeline instead of Colab. Set enabled:true offline to regenerate models, then set false before deploying to production."
+  },
+  "retrain_on_startup": {
+    "enabled": true,
+    "_note": "When true, FastAPI retrains all stale or missing models on startup. Use offline only. Always set false before pushing to production."
+  },
+  "exchanges": {
+    "NSE": {
+      "suffix": ".NS",
+      "market_index_ticker": "^NSEI",
+      "currency_pair": "USDINR=X",
+      "market_hours": {
+        "timezone": "Asia/Kolkata",
+        "open": "09:15",
+        "close": "15:30"
+      },
+      "historical_data_provider": "yfinance",
+      "live_data_provider": "yfinance",
+      "live_data_provider_options": [
+        "yfinance",
+        "zerodha",
+        "angel_one"
+      ],
+      "_live_note": "yfinance = 15-min delayed. Switch to zerodha or angel_one for real-time."
+    },
+    "BSE": {
+      "suffix": ".BO",
+      "market_index_ticker": "^BSESN",
+      "currency_pair": "USDINR=X",
+      "market_hours": {
+        "timezone": "Asia/Kolkata",
+        "open": "09:15",
+        "close": "15:30"
+      },
+      "historical_data_provider": "yfinance",
+      "live_data_provider": "yfinance",
+      "live_data_provider_options": [
+        "yfinance",
+        "zerodha",
+        "angel_one"
+      ],
+      "_live_note": "yfinance = 15-min delayed. Switch to zerodha or angel_one for real-time."
+    },
+    "NYSE": {
+      "suffix": "",
+      "market_index_ticker": "^GSPC",
+      "currency_pair": "USDINR=X",
+      "market_hours": {
+        "timezone": "America/New_York",
+        "open": "09:30",
+        "close": "16:00"
+      },
+      "historical_data_provider": "yfinance",
+      "live_data_provider": "yfinance",
+      "live_data_provider_options": [
+        "yfinance"
+      ],
+      "_live_note": "yfinance only for NYSE currently. Polygon.io can be added later."
+    }
+  },
+  "stocks": [
+    {
+      "id": "RELIANCE",
+      "ticker": "RELIANCE.NS",
+      "display_name": "Reliance Industries",
+      "exchange": "NSE",
+      "sector": "Energy",
+      "color": "#00D4AA",
+      "enabled": true,
+      "model": {
+        "retrain_interval_days": 30,
+        "prediction_horizon_days": 5,
+        "training_data_years": 5
+      }
+    },
+    {
+      "id": "TCS",
+      "ticker": "TCS.NS",
+      "display_name": "Tata Consultancy Services",
+      "exchange": "NSE",
+      "sector": "Technology",
+      "color": "#4C9AFF",
+      "enabled": true,
+      "model": {
+        "retrain_interval_days": 30,
+        "prediction_horizon_days": 5,
+        "training_data_years": 5
+      }
+    },
+    {
+      "id": "HDFCBANK",
+      "ticker": "HDFCBANK.NS",
+      "display_name": "HDFC Bank",
+      "exchange": "NSE",
+      "sector": "Banking",
+      "color": "#FFB020",
+      "enabled": true,
+      "model": {
+        "retrain_interval_days": 30,
+        "prediction_horizon_days": 5,
+        "training_data_years": 5
+      }
+    },
+    {
+      "id": "INFY",
+      "ticker": "INFY.NS",
+      "display_name": "Infosys",
+      "exchange": "NSE",
+      "sector": "Technology",
+      "color": "#A06DFF",
+      "enabled": true,
+      "model": {
+        "retrain_interval_days": 30,
+        "prediction_horizon_days": 5,
+        "training_data_years": 5
+      }
+    },
+    {
+      "id": "WIPRO",
+      "ticker": "WIPRO.NS",
+      "display_name": "Wipro",
+      "exchange": "NSE",
+      "sector": "Technology",
+      "color": "#FF7A59",
+      "enabled": true,
+      "model": {
+        "retrain_interval_days": 30,
+        "prediction_horizon_days": 5,
+        "training_data_years": 5
+      }
+    }
+  ],
+  "signal_processing": {
+    "default_transform": "stft",
+    "available_transforms": [
+      "stft",
+      "cwt",
+      "hht"
+    ],
+    "stft": {
+      "window_length": 64,
+      "hop_size": 16,
+      "window_function": "hann",
+      "n_fft": 128
+    },
+    "cwt": {
+      "wavelet": "morl",
+      "scales": 64
+    },
+    "hht": {
+      "max_imfs": 6,
+      "frequency_bins": 64
+    }
+  },
+  "training": {
+    "split": {
+      "train": 0.7,
+      "val": 0.15,
+      "test": 0.15
+    },
+    "epochs": 50,
+    "batch_size": 32,
+    "learning_rate": 0.001,
+    "split_strategy": "time_based"
+  },
+  "retraining": {
+    "enabled": true,
+    "check_interval_hours": 6,
+    "strategy": "scheduled",
+    "drift_threshold_multiplier": 1.5,
+    "notify_on_completion": true
+  }
+}

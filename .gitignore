@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+
+frontend/dist/
+frontend/test-results/
+frontend/edge-headless-profile/
+frontend/edge-phase11-profile/
+frontend/edge-phase12-profile/
+
+backend/*.log
+backend/*.pid
+frontend/*.log
+frontend/*.pid
+frontend/*.png

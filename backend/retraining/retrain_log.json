@@ -1,0 +1,911 @@
+{
+  "retrain_history": [
+    {
+      "stock_id": "RELIANCE",
+      "timestamp": "2026-03-20T11:01:40.961414Z",
+      "reason": "manual",
+      "mode": "per_stock",
+      "before_mse": null,
+      "after_mse": 33703.51794502532,
+      "duration_seconds": 15.353,
+      "status": "success",
+      "checkpoint_path": "D:\\StockCNN\\backend\\models\\model_store\\per_stock\\RELIANCE_model.pth",
+      "report_path": "D:\\StockCNN\\backend\\models\\model_store\\reports\\RELIANCE_training_report.json",
+      "scaler_paths": {
+        "RELIANCE": "D:\\StockCNN\\backend\\models\\model_store\\scalers\\RELIANCE_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 683,
+        "val_count": 146,
+        "test_count": 148,
+        "train_first": [
+          "2022-04-08T00:00:00",
+          "2022-04-11T00:00:00",
+          "2022-04-12T00:00:00",
+          "2022-04-13T00:00:00",
+          "2022-04-18T00:00:00"
+        ],
+        "train_last": [
+          "2025-01-08T00:00:00",
+          "2025-01-09T00:00:00",
+          "2025-01-10T00:00:00",
+          "2025-01-13T00:00:00",
+          "2025-01-14T00:00:00"
+        ],
+        "test_first": [
+          "2025-08-18T00:00:00",
+          "2025-08-19T00:00:00",
+          "2025-08-20T00:00:00",
+          "2025-08-21T00:00:00",
+          "2025-08-22T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 148,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
+    },
+    {
+      "stock_id": "RELIANCE",
+      "timestamp": "2026-03-20T11:20:15.162572Z",
+      "reason": "manual_training",
+      "mode": "per_stock",
+      "before_mse": 33703.51794502532,
+      "after_mse": 21447.01038827576,
+      "duration_seconds": 14.818,
+      "status": "success",
+      "checkpoint_path": "D:\\StockCNN\\backend\\models\\model_store\\per_stock\\RELIANCE_model.pth",
+      "report_path": "D:\\StockCNN\\backend\\models\\model_store\\reports\\RELIANCE_training_report.json",
+      "scaler_paths": {
+        "RELIANCE": "D:\\StockCNN\\backend\\models\\model_store\\scalers\\RELIANCE_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 683,
+        "val_count": 146,
+        "test_count": 148,
+        "train_first": [
+          "2022-04-08T00:00:00",
+          "2022-04-11T00:00:00",
+          "2022-04-12T00:00:00",
+          "2022-04-13T00:00:00",
+          "2022-04-18T00:00:00"
+        ],
+        "train_last": [
+          "2025-01-08T00:00:00",
+          "2025-01-09T00:00:00",
+          "2025-01-10T00:00:00",
+          "2025-01-13T00:00:00",
+          "2025-01-14T00:00:00"
+        ],
+        "test_first": [
+          "2025-08-18T00:00:00",
+          "2025-08-19T00:00:00",
+          "2025-08-20T00:00:00",
+          "2025-08-21T00:00:00",
+          "2025-08-22T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 148,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
+    },
+    {
+      "stock_id": "RELIANCE",
+      "timestamp": "2026-03-20T11:50:27.208915Z",
+      "reason": "manual_training",
+      "mode": "per_stock",
+      "before_mse": 21447.01038827576,
+      "after_mse": null,
+      "duration_seconds": 60.023,
+      "status": "failed",
+      "error": "No historical OHLCV data found for RELIANCE."
+    },
+    {
+      "stock_id": "RELIANCE",
+      "timestamp": "2026-03-20T12:08:13.195873Z",
+      "reason": "manual_training",
+      "mode": "per_stock",
+      "before_mse": 21447.01038827576,
+      "after_mse": 19264.672537258048,
+      "duration_seconds": 15.523,
+      "status": "success",
+      "checkpoint_path": "D:\\StockCNN\\backend\\models\\model_store\\per_stock\\RELIANCE_model.pth",
+      "report_path": "D:\\StockCNN\\backend\\models\\model_store\\reports\\RELIANCE_training_report.json",
+      "scaler_paths": {
+        "RELIANCE": "D:\\StockCNN\\backend\\models\\model_store\\scalers\\RELIANCE_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 683,
+        "val_count": 146,
+        "test_count": 148,
+        "train_first": [
+          "2022-04-08T00:00:00",
+          "2022-04-11T00:00:00",
+          "2022-04-12T00:00:00",
+          "2022-04-13T00:00:00",
+          "2022-04-18T00:00:00"
+        ],
+        "train_last": [
+          "2025-01-08T00:00:00",
+          "2025-01-09T00:00:00",
+          "2025-01-10T00:00:00",
+          "2025-01-13T00:00:00",
+          "2025-01-14T00:00:00"
+        ],
+        "test_first": [
+          "2025-08-18T00:00:00",
+          "2025-08-19T00:00:00",
+          "2025-08-20T00:00:00",
+          "2025-08-21T00:00:00",
+          "2025-08-22T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 148,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
+    },
+    {
+      "stock_id": "RELIANCE",
+      "timestamp": "2026-03-20T12:08:29.093336Z",
+      "reason": "manual",
+      "mode": "per_stock",
+      "before_mse": 19264.672537258048,
+      "after_mse": 23633.335685525893,
+      "duration_seconds": 12.066,
+      "status": "success",
+      "checkpoint_path": "D:\\StockCNN\\backend\\models\\model_store\\per_stock\\RELIANCE_model.pth",
+      "report_path": "D:\\StockCNN\\backend\\models\\model_store\\reports\\RELIANCE_training_report.json",
+      "scaler_paths": {
+        "RELIANCE": "D:\\StockCNN\\backend\\models\\model_store\\scalers\\RELIANCE_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 683,
+        "val_count": 146,
+        "test_count": 148,
+        "train_first": [
+          "2022-04-08T00:00:00",
+          "2022-04-11T00:00:00",
+          "2022-04-12T00:00:00",
+          "2022-04-13T00:00:00",
+          "2022-04-18T00:00:00"
+        ],
+        "train_last": [
+          "2025-01-08T00:00:00",
+          "2025-01-09T00:00:00",
+          "2025-01-10T00:00:00",
+          "2025-01-13T00:00:00",
+          "2025-01-14T00:00:00"
+        ],
+        "test_first": [
+          "2025-08-18T00:00:00",
+          "2025-08-19T00:00:00",
+          "2025-08-20T00:00:00",
+          "2025-08-21T00:00:00",
+          "2025-08-22T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 148,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
+    },
+    {
+      "stock_id": "RELIANCE",
+      "timestamp": "2026-03-20T12:08:58.512092Z",
+      "reason": "manual",
+      "mode": "per_stock",
+      "before_mse": 23633.335685525893,
+      "after_mse": 16559.39001677427,
+      "duration_seconds": 17.199,
+      "status": "success",
+      "checkpoint_path": "D:\\StockCNN\\backend\\models\\model_store\\per_stock\\RELIANCE_model.pth",
+      "report_path": "D:\\StockCNN\\backend\\models\\model_store\\reports\\RELIANCE_training_report.json",
+      "scaler_paths": {
+        "RELIANCE": "D:\\StockCNN\\backend\\models\\model_store\\scalers\\RELIANCE_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 683,
+        "val_count": 146,
+        "test_count": 148,
+        "train_first": [
+          "2022-04-08T00:00:00",
+          "2022-04-11T00:00:00",
+          "2022-04-12T00:00:00",
+          "2022-04-13T00:00:00",
+          "2022-04-18T00:00:00"
+        ],
+        "train_last": [
+          "2025-01-08T00:00:00",
+          "2025-01-09T00:00:00",
+          "2025-01-10T00:00:00",
+          "2025-01-13T00:00:00",
+          "2025-01-14T00:00:00"
+        ],
+        "test_first": [
+          "2025-08-18T00:00:00",
+          "2025-08-19T00:00:00",
+          "2025-08-20T00:00:00",
+          "2025-08-21T00:00:00",
+          "2025-08-22T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 148,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
+    },
+    {
+      "stock_id": "TCS",
+      "timestamp": "2026-03-20T12:09:15.714460Z",
+      "reason": "manual",
+      "mode": "per_stock",
+      "before_mse": null,
+      "after_mse": 91470.38235730416,
+      "duration_seconds": 13.52,
+      "status": "success",
+      "checkpoint_path": "D:\\StockCNN\\backend\\models\\model_store\\per_stock\\TCS_model.pth",
+      "report_path": "D:\\StockCNN\\backend\\models\\model_store\\reports\\TCS_training_report.json",
+      "scaler_paths": {
+        "TCS": "D:\\StockCNN\\backend\\models\\model_store\\scalers\\TCS_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 683,
+        "val_count": 146,
+        "test_count": 148,
+        "train_first": [
+          "2022-04-08T00:00:00",
+          "2022-04-11T00:00:00",
+          "2022-04-12T00:00:00",
+          "2022-04-13T00:00:00",
+          "2022-04-18T00:00:00"
+        ],
+        "train_last": [
+          "2025-01-08T00:00:00",
+          "2025-01-09T00:00:00",
+          "2025-01-10T00:00:00",
+          "2025-01-13T00:00:00",
+          "2025-01-14T00:00:00"
+        ],
+        "test_first": [
+          "2025-08-18T00:00:00",
+          "2025-08-19T00:00:00",
+          "2025-08-20T00:00:00",
+          "2025-08-21T00:00:00",
+          "2025-08-22T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 148,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
+    },
+    {
+      "stock_id": "HDFCBANK",
+      "timestamp": "2026-03-20T12:09:29.236862Z",
+      "reason": "manual",
+      "mode": "per_stock",
+      "before_mse": null,
+      "after_mse": 11651.50951712196,
+      "duration_seconds": 13.78,
+      "status": "success",
+      "checkpoint_path": "D:\\StockCNN\\backend\\models\\model_store\\per_stock\\HDFCBANK_model.pth",
+      "report_path": "D:\\StockCNN\\backend\\models\\model_store\\reports\\HDFCBANK_training_report.json",
+      "scaler_paths": {
+        "HDFCBANK": "D:\\StockCNN\\backend\\models\\model_store\\scalers\\HDFCBANK_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 683,
+        "val_count": 146,
+        "test_count": 148,
+        "train_first": [
+          "2022-04-08T00:00:00",
+          "2022-04-11T00:00:00",
+          "2022-04-12T00:00:00",
+          "2022-04-13T00:00:00",
+          "2022-04-18T00:00:00"
+        ],
+        "train_last": [
+          "2025-01-08T00:00:00",
+          "2025-01-09T00:00:00",
+          "2025-01-10T00:00:00",
+          "2025-01-13T00:00:00",
+          "2025-01-14T00:00:00"
+        ],
+        "test_first": [
+          "2025-08-18T00:00:00",
+          "2025-08-19T00:00:00",
+          "2025-08-20T00:00:00",
+          "2025-08-21T00:00:00",
+          "2025-08-22T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 148,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
+    },
+    {
+      "stock_id": "INFY",
+      "timestamp": "2026-03-20T12:09:43.019576Z",
+      "reason": "manual",
+      "mode": "per_stock",
+      "before_mse": null,
+      "after_mse": 15310.224338615666,
+      "duration_seconds": 13.499,
+      "status": "success",
+      "checkpoint_path": "D:\\StockCNN\\backend\\models\\model_store\\per_stock\\INFY_model.pth",
+      "report_path": "D:\\StockCNN\\backend\\models\\model_store\\reports\\INFY_training_report.json",
+      "scaler_paths": {
+        "INFY": "D:\\StockCNN\\backend\\models\\model_store\\scalers\\INFY_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 683,
+        "val_count": 146,
+        "test_count": 148,
+        "train_first": [
+          "2022-04-08T00:00:00",
+          "2022-04-11T00:00:00",
+          "2022-04-12T00:00:00",
+          "2022-04-13T00:00:00",
+          "2022-04-18T00:00:00"
+        ],
+        "train_last": [
+          "2025-01-08T00:00:00",
+          "2025-01-09T00:00:00",
+          "2025-01-10T00:00:00",
+          "2025-01-13T00:00:00",
+          "2025-01-14T00:00:00"
+        ],
+        "test_first": [
+          "2025-08-18T00:00:00",
+          "2025-08-19T00:00:00",
+          "2025-08-20T00:00:00",
+          "2025-08-21T00:00:00",
+          "2025-08-22T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 148,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
+    },
+    {
+      "stock_id": "WIPRO",
+      "timestamp": "2026-03-20T12:09:56.521994Z",
+      "reason": "manual",
+      "mode": "per_stock",
+      "before_mse": null,
+      "after_mse": 1897.605012362285,
+      "duration_seconds": 13.382,
+      "status": "success",
+      "checkpoint_path": "D:\\StockCNN\\backend\\models\\model_store\\per_stock\\WIPRO_model.pth",
+      "report_path": "D:\\StockCNN\\backend\\models\\model_store\\reports\\WIPRO_training_report.json",
+      "scaler_paths": {
+        "WIPRO": "D:\\StockCNN\\backend\\models\\model_store\\scalers\\WIPRO_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 683,
+        "val_count": 146,
+        "test_count": 148,
+        "train_first": [
+          "2022-04-08T00:00:00",
+          "2022-04-11T00:00:00",
+          "2022-04-12T00:00:00",
+          "2022-04-13T00:00:00",
+          "2022-04-18T00:00:00"
+        ],
+        "train_last": [
+          "2025-01-08T00:00:00",
+          "2025-01-09T00:00:00",
+          "2025-01-10T00:00:00",
+          "2025-01-13T00:00:00",
+          "2025-01-14T00:00:00"
+        ],
+        "test_first": [
+          "2025-08-18T00:00:00",
+          "2025-08-19T00:00:00",
+          "2025-08-20T00:00:00",
+          "2025-08-21T00:00:00",
+          "2025-08-22T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 148,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
+    },
+    {
+      "stock_id": "RELIANCE",
+      "timestamp": "2026-03-20T17:53:29.311336Z",
+      "reason": "manual",
+      "mode": "per_stock",
+      "before_mse": 16559.39001677427,
+      "after_mse": 26638.687955193625,
+      "duration_seconds": 79.42,
+      "status": "success",
+      "checkpoint_path": "D:\\StockCNN\\backend\\models\\model_store\\per_stock\\RELIANCE_model.pth",
+      "report_path": "D:\\StockCNN\\backend\\models\\model_store\\reports\\RELIANCE_training_report.json",
+      "scaler_paths": {
+        "RELIANCE": "D:\\StockCNN\\backend\\models\\model_store\\scalers\\RELIANCE_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 683,
+        "val_count": 146,
+        "test_count": 148,
+        "train_first": [
+          "2022-04-08T00:00:00",
+          "2022-04-11T00:00:00",
+          "2022-04-12T00:00:00",
+          "2022-04-13T00:00:00",
+          "2022-04-18T00:00:00"
+        ],
+        "train_last": [
+          "2025-01-08T00:00:00",
+          "2025-01-09T00:00:00",
+          "2025-01-10T00:00:00",
+          "2025-01-13T00:00:00",
+          "2025-01-14T00:00:00"
+        ],
+        "test_first": [
+          "2025-08-18T00:00:00",
+          "2025-08-19T00:00:00",
+          "2025-08-20T00:00:00",
+          "2025-08-21T00:00:00",
+          "2025-08-22T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 148,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
+    },
+    {
+      "stock_id": "RELIANCE",
+      "timestamp": "2026-03-20T18:41:09.490992Z",
+      "reason": "manual",
+      "mode": "per_stock",
+      "before_mse": 26638.687955193625,
+      "after_mse": 27539.654308001132,
+      "duration_seconds": 383.165,
+      "status": "success",
+      "checkpoint_path": "D:\\StockCNN\\backend\\models\\model_store\\per_stock\\RELIANCE_model.pth",
+      "report_path": "D:\\StockCNN\\backend\\models\\model_store\\reports\\RELIANCE_training_report.json",
+      "scaler_paths": {
+        "RELIANCE": "D:\\StockCNN\\backend\\models\\model_store\\scalers\\RELIANCE_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 683,
+        "val_count": 146,
+        "test_count": 148,
+        "train_first": [
+          "2022-04-08T00:00:00",
+          "2022-04-11T00:00:00",
+          "2022-04-12T00:00:00",
+          "2022-04-13T00:00:00",
+          "2022-04-18T00:00:00"
+        ],
+        "train_last": [
+          "2025-01-08T00:00:00",
+          "2025-01-09T00:00:00",
+          "2025-01-10T00:00:00",
+          "2025-01-13T00:00:00",
+          "2025-01-14T00:00:00"
+        ],
+        "test_first": [
+          "2025-08-18T00:00:00",
+          "2025-08-19T00:00:00",
+          "2025-08-20T00:00:00",
+          "2025-08-21T00:00:00",
+          "2025-08-22T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 148,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
+    },
+    {
+      "stock_id": "RELIANCE",
+      "timestamp": "2026-03-21T08:11:47.147674Z",
+      "reason": "manual_training",
+      "mode": "per_stock",
+      "before_mse": 27539.654308001132,
+      "after_mse": 22679.387912845392,
+      "duration_seconds": 26.634,
+      "status": "success",
+      "checkpoint_path": "/app/backend/models/model_store/per_stock/RELIANCE_model.pth",
+      "report_path": "/app/backend/models/model_store/reports/RELIANCE_training_report.json",
+      "scaler_paths": {
+        "RELIANCE": "/app/backend/models/model_store/scalers/RELIANCE_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 683,
+        "val_count": 146,
+        "test_count": 148,
+        "train_first": [
+          "2022-04-08T00:00:00",
+          "2022-04-11T00:00:00",
+          "2022-04-12T00:00:00",
+          "2022-04-13T00:00:00",
+          "2022-04-18T00:00:00"
+        ],
+        "train_last": [
+          "2025-01-08T00:00:00",
+          "2025-01-09T00:00:00",
+          "2025-01-10T00:00:00",
+          "2025-01-13T00:00:00",
+          "2025-01-14T00:00:00"
+        ],
+        "test_first": [
+          "2025-08-18T00:00:00",
+          "2025-08-19T00:00:00",
+          "2025-08-20T00:00:00",
+          "2025-08-21T00:00:00",
+          "2025-08-22T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 148,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
+    },
+    {
+      "stock_id": "TCS",
+      "timestamp": "2026-03-21T08:12:13.844319Z",
+      "reason": "manual_training",
+      "mode": "per_stock",
+      "before_mse": 91470.38235730416,
+      "after_mse": 122992.85854377497,
+      "duration_seconds": 23.104,
+      "status": "success",
+      "checkpoint_path": "/app/backend/models/model_store/per_stock/TCS_model.pth",
+      "report_path": "/app/backend/models/model_store/reports/TCS_training_report.json",
+      "scaler_paths": {
+        "TCS": "/app/backend/models/model_store/scalers/TCS_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 683,
+        "val_count": 146,
+        "test_count": 148,
+        "train_first": [
+          "2022-04-08T00:00:00",
+          "2022-04-11T00:00:00",
+          "2022-04-12T00:00:00",
+          "2022-04-13T00:00:00",
+          "2022-04-18T00:00:00"
+        ],
+        "train_last": [
+          "2025-01-08T00:00:00",
+          "2025-01-09T00:00:00",
+          "2025-01-10T00:00:00",
+          "2025-01-13T00:00:00",
+          "2025-01-14T00:00:00"
+        ],
+        "test_first": [
+          "2025-08-18T00:00:00",
+          "2025-08-19T00:00:00",
+          "2025-08-20T00:00:00",
+          "2025-08-21T00:00:00",
+          "2025-08-22T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 148,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
+    },
+    {
+      "stock_id": "HDFCBANK",
+      "timestamp": "2026-03-21T08:12:39.744950Z",
+      "reason": "manual_training",
+      "mode": "per_stock",
+      "before_mse": 11651.50951712196,
+      "after_mse": 5319.705565070029,
+      "duration_seconds": 21.526,
+      "status": "success",
+      "checkpoint_path": "/app/backend/models/model_store/per_stock/HDFCBANK_model.pth",
+      "report_path": "/app/backend/models/model_store/reports/HDFCBANK_training_report.json",
+      "scaler_paths": {
+        "HDFCBANK": "/app/backend/models/model_store/scalers/HDFCBANK_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 683,
+        "val_count": 146,
+        "test_count": 148,
+        "train_first": [
+          "2022-04-08T00:00:00",
+          "2022-04-11T00:00:00",
+          "2022-04-12T00:00:00",
+          "2022-04-13T00:00:00",
+          "2022-04-18T00:00:00"
+        ],
+        "train_last": [
+          "2025-01-08T00:00:00",
+          "2025-01-09T00:00:00",
+          "2025-01-10T00:00:00",
+          "2025-01-13T00:00:00",
+          "2025-01-14T00:00:00"
+        ],
+        "test_first": [
+          "2025-08-18T00:00:00",
+          "2025-08-19T00:00:00",
+          "2025-08-20T00:00:00",
+          "2025-08-21T00:00:00",
+          "2025-08-22T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 148,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
+    },
+    {
+      "stock_id": "INFY",
+      "timestamp": "2026-03-21T08:13:04.069914Z",
+      "reason": "manual_training",
+      "mode": "per_stock",
+      "before_mse": 15310.224338615666,
+      "after_mse": 17041.32283013465,
+      "duration_seconds": 30.012,
+      "status": "success",
+      "checkpoint_path": "/app/backend/models/model_store/per_stock/INFY_model.pth",
+      "report_path": "/app/backend/models/model_store/reports/INFY_training_report.json",
+      "scaler_paths": {
+        "INFY": "/app/backend/models/model_store/scalers/INFY_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 683,
+        "val_count": 146,
+        "test_count": 148,
+        "train_first": [
+          "2022-04-08T00:00:00",
+          "2022-04-11T00:00:00",
+          "2022-04-12T00:00:00",
+          "2022-04-13T00:00:00",
+          "2022-04-18T00:00:00"
+        ],
+        "train_last": [
+          "2025-01-08T00:00:00",
+          "2025-01-09T00:00:00",
+          "2025-01-10T00:00:00",
+          "2025-01-13T00:00:00",
+          "2025-01-14T00:00:00"
+        ],
+        "test_first": [
+          "2025-08-18T00:00:00",
+          "2025-08-19T00:00:00",
+          "2025-08-20T00:00:00",
+          "2025-08-21T00:00:00",
+          "2025-08-22T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 148,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
+    },
+    {
+      "stock_id": "WIPRO",
+      "timestamp": "2026-03-21T08:13:36.864417Z",
+      "reason": "manual_training",
+      "mode": "per_stock",
+      "before_mse": 1897.605012362285,
+      "after_mse": 1730.3293288996667,
+      "duration_seconds": 24.642,
+      "status": "success",
+      "checkpoint_path": "/app/backend/models/model_store/per_stock/WIPRO_model.pth",
+      "report_path": "/app/backend/models/model_store/reports/WIPRO_training_report.json",
+      "scaler_paths": {
+        "WIPRO": "/app/backend/models/model_store/scalers/WIPRO_scaler.pkl"
+      },
+      "dataset_summary": {
+        "train_count": 683,
+        "val_count": 146,
+        "test_count": 148,
+        "train_first": [
+          "2022-04-08T00:00:00",
+          "2022-04-11T00:00:00",
+          "2022-04-12T00:00:00",
+          "2022-04-13T00:00:00",
+          "2022-04-18T00:00:00"
+        ],
+        "train_last": [
+          "2025-01-08T00:00:00",
+          "2025-01-09T00:00:00",
+          "2025-01-10T00:00:00",
+          "2025-01-13T00:00:00",
+          "2025-01-14T00:00:00"
+        ],
+        "test_first": [
+          "2025-08-18T00:00:00",
+          "2025-08-19T00:00:00",
+          "2025-08-20T00:00:00",
+          "2025-08-21T00:00:00",
+          "2025-08-22T00:00:00"
+        ],
+        "test_last": [
+          "2026-03-16T00:00:00",
+          "2026-03-17T00:00:00",
+          "2026-03-18T00:00:00",
+          "2026-03-19T00:00:00",
+          "2026-03-20T00:00:00"
+        ],
+        "train_test_overlap": 0,
+        "test_is_later_than_train": true,
+        "evaluation_count": 148,
+        "input_shape": [
+          1,
+          65,
+          13
+        ]
+      }
+    }
+  ]
+}

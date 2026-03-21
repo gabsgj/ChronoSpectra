@@ -1,0 +1,12 @@
+fastapi>=0.116,<1.0
+pandas>=2.2,<3.0
+numpy>=2.0,<3.0
+uvicorn[standard]>=0.35,<1.0
+yfinance>=0.2.54,<1.0
+scipy>=1.15,<2.0
+PyWavelets>=1.8,<2.0
+EMD-signal>=1.6,<2.0
+matplotlib>=3.9,<4.0
+torch>=2.6,<3.0
+Jinja2>=3.1,<4.0
+APScheduler>=3.10,<4.0
