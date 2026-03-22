@@ -70,7 +70,7 @@ function AppShell({ isTrainingRoute, onToggleTheme, theme }: AppShellProps) {
   }, [isMobileSidebarOpen])
 
   return (
-    <div className="relative min-h-screen overflow-x-clip bg-shell text-ink">
+    <div className="relative min-h-screen overflow-x-clip break-words bg-shell text-ink">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[34rem] bg-[radial-gradient(circle_at_top_left,rgba(11,143,156,0.18),transparent_40%),radial-gradient(circle_at_top_right,rgba(194,124,44,0.12),transparent_36%)] dark:bg-[radial-gradient(circle_at_top_left,rgba(60,198,207,0.14),transparent_40%),radial-gradient(circle_at_top_right,rgba(226,162,79,0.14),transparent_36%)]" />
       <div className="relative mx-auto flex min-h-screen max-w-[1840px] gap-4 px-3 py-3 sm:px-4 sm:py-4 lg:gap-6 lg:px-6 xl:gap-8 xl:px-8">
         <Sidebar
@@ -82,7 +82,6 @@ function AppShell({ isTrainingRoute, onToggleTheme, theme }: AppShellProps) {
           <Navbar
             theme={theme}
             onToggleTheme={onToggleTheme}
-            onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
             trainingRuntime={trainingRuntime}
             trainingRuntimeLoading={trainingReports.isLoading}
             trainingRuntimeError={trainingReports.error}
@@ -127,17 +126,6 @@ function AppShell({ isTrainingRoute, onToggleTheme, theme }: AppShellProps) {
             />
           </div>
         </div>
-      ) : null}
-
-      {!isMobileSidebarOpen ? (
-        <button
-          type="button"
-          onClick={() => setIsMobileSidebarOpen(true)}
-          className="fixed bottom-4 right-4 z-40 inline-flex h-12 items-center justify-center rounded-full border border-teal/30 bg-card/95 px-4 text-xs font-semibold uppercase tracking-[0.18em] text-teal shadow-[0_20px_38px_-20px_rgba(8,15,28,0.42)] transition hover:bg-teal/10 lg:hidden"
-          aria-label="Open sidebar navigation"
-        >
-          Menu
-        </button>
       ) : null}
     </div>
   )

@@ -12,7 +12,6 @@ interface NavbarProps {
   showTrainingRuntimeChip: boolean
   theme: ThemeMode
   onToggleTheme: () => void
-  onOpenMobileSidebar: () => void
 }
 
 export function Navbar({
@@ -22,7 +21,6 @@ export function Navbar({
   showTrainingRuntimeChip,
   theme,
   onToggleTheme,
-  onOpenMobileSidebar,
 }: NavbarProps) {
   return (
     <header className="panel-surface overflow-visible px-5 py-5 sm:px-6">
@@ -86,14 +84,6 @@ export function Navbar({
             <HoverHint label="Hover over the small ? buttons across cards, badges, and controls to see plain-language guidance. The dashboard also includes a Start Here flow for beginners." />
           </div>
           <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-          <button
-            type="button"
-            onClick={onOpenMobileSidebar}
-            className="inline-flex items-center justify-center rounded-full border border-stroke/70 bg-card/75 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-ink transition hover:border-teal/40 hover:text-teal lg:hidden"
-            aria-label="Open sidebar navigation"
-          >
-            Menu
-          </button>
           <p className="text-xs uppercase tracking-[0.24em] text-muted">
             {activeStocks.length} tracked stocks | v{appConfig.version}
           </p>
