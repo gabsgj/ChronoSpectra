@@ -13,11 +13,13 @@ import {
   activeStocks,
   appConfig,
 } from '../config/stocksConfig'
+import { useDashboardFeatureEffects } from '../hooks/useDashboardFeatureEffects'
 import { useDashboardMarketData } from '../hooks/useDashboardMarketData'
 import { useExchangeStatuses } from '../hooks/useExchangeStatuses'
 import { useRetrainingStatus } from '../hooks/useRetrainingStatus'
 import { useSharedTrainingReports } from '../contexts/SharedTrainingReportsContext'
 import type {
+  FeatureEffectEntryResponse,
   MarketDataResponse,
   RetrainingStockStatusResponse,
   StockConfig,
@@ -56,6 +58,13 @@ const formatMetric = (
     return 'Pending'
   }
   return `${value.toFixed(options?.digits ?? 2)}${options?.suffix ?? ''}`
+}
+
+const formatPct = (value: number | null | undefined, digits = 1) => {
+  if (typeof value !== 'number') {
+    return 'n/a'
+  }
+  return `${(value * 100).toFixed(digits)}%`
 }
 
 const formatChange = (value: number | null) => {
@@ -136,6 +145,7 @@ const renderInlineError = (
 export default function Dashboard() {
   const theme = resolveTheme()
   const marketData = useDashboardMarketData(activeStockIds)
+  const featureEffects = useDashboardFeatureEffects(activeStockIds)
   const exchangeStatuses = useExchangeStatuses(uniqueExchangeIds)
   const trainingReports = useSharedTrainingReports()
   const retrainingStatus = useRetrainingStatus()
@@ -185,28 +195,107 @@ export default function Dashboard() {
   const savedReportsCount = trainingReports.data?.reports.length ?? 0
   const anyRefreshing =
     marketData.isRefreshing ||
+    featureEffects.isRefreshing ||
     exchangeStatuses.isRefreshing ||
     trainingReports.isRefreshing ||
     retrainingStatus.isRefreshing
   const refreshLabel = anyRefreshing ? 'Refreshing signals' : 'Latest snapshot ready'
   const retryAll = () => {
     marketData.retry()
+    featureEffects.retry()
     exchangeStatuses.retry()
     trainingReports.retry()
     retrainingStatus.retry()
   }
   const globalErrors = [
     marketData.error,
+    featureEffects.error,
     exchangeStatuses.error,
     trainingReports.error,
     retrainingStatus.error,
   ].filter((value): value is string => value !== null)
   const globalHints = [
     marketData.hint,
+    featureEffects.hint,
     exchangeStatuses.hint,
     trainingReports.hint,
     retrainingStatus.hint,
   ].filter((value): value is string => Boolean(value))
+
+  const topFeaturesByStock = activeStocks
+    .map((stock) => {
+      const topFeature = featureEffects.dataByStock[stock.id]?.features[0]
+      if (!topFeature) {
+        return null
+      }
+      return {
+        stock,
+        topFeature,
+      }
+    })
+    .filter(
+      (
+        entry,
+      ): entry is {
+        stock: StockConfig
+        topFeature: FeatureEffectEntryResponse
+      } => entry !== null,
+    )
+
+  const topDriverRollup = new Map<
+    string,
+    {
+      label: string
+      count: number
+      totalStrength: number
+    }
+  >()
+
+  topFeaturesByStock.forEach(({ topFeature }) => {
+    const current = topDriverRollup.get(topFeature.feature) ?? {
+      label: topFeature.label,
+      count: 0,
+      totalStrength: 0,
+    }
+    topDriverRollup.set(topFeature.feature, {
+      label: current.label,
+      count: current.count + 1,
+      totalStrength: current.totalStrength + (topFeature.relative_strength ?? 0),
+    })
+  })
+
+  const mostCommonDriver = [...topDriverRollup.values()].sort((left, right) => {
+    if (right.count === left.count) {
+      return right.totalStrength - left.totalStrength
+    }
+    return right.count - left.count
+  })[0] ?? null
+
+  const globalFeatureLeaderboard = [...topDriverRollup.values()]
+    .map((entry) => ({
+      ...entry,
+      averageStrength: entry.count > 0 ? entry.totalStrength / entry.count : 0,
+    }))
+    .sort((left, right) => {
+      if (right.count === left.count) {
+        return right.averageStrength - left.averageStrength
+      }
+      return right.count - left.count
+    })
+    .slice(0, 3)
+
+  const strongestDriver = topFeaturesByStock
+    .slice()
+    .sort((left, right) => {
+      return (right.topFeature.relative_strength ?? 0) - (left.topFeature.relative_strength ?? 0)
+    })[0] ?? null
+
+  const directionalSamples = topFeaturesByStock
+    .map((entry) => entry.topFeature.directional_accuracy)
+    .filter((value): value is number => typeof value === 'number')
+  const averageTopDriverDirectionalAccuracy = directionalSamples.length > 0
+    ? directionalSamples.reduce((sum, value) => sum + value, 0) / directionalSamples.length
+    : null
 
   return (
     <div className="space-y-8">
@@ -468,6 +557,97 @@ export default function Dashboard() {
       <section className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
+            <p className="eyebrow">Drivers</p>
+            <h3 className="mt-2 text-2xl text-ink">Top feature drivers by stock</h3>
+          </div>
+          <p className="text-sm text-muted">
+            {featureEffects.missingStockIds.length > 0
+              ? `Missing analysis for ${featureEffects.missingStockIds.join(', ')}`
+              : 'Feature snapshots are available for each active stock'}
+          </p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-3">
+          <article className="rounded-[20px] border border-stroke/70 bg-card/70 p-4">
+            <p className="text-xs uppercase tracking-[0.18em] text-muted">Most common driver</p>
+            <p className="mt-2 text-lg font-semibold text-ink">
+              {mostCommonDriver ? mostCommonDriver.label : 'Pending'}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-muted">
+              {mostCommonDriver
+                ? `${mostCommonDriver.count} stock${mostCommonDriver.count > 1 ? 's' : ''} have this as their top signal.`
+                : 'Waiting for feature snapshots.'}
+            </p>
+          </article>
+
+          <article className="rounded-[20px] border border-stroke/70 bg-card/70 p-4">
+            <p className="text-xs uppercase tracking-[0.18em] text-muted">Strongest single driver</p>
+            <p className="mt-2 text-lg font-semibold text-ink">
+              {strongestDriver
+                ? `${strongestDriver.topFeature.label} (${strongestDriver.stock.id})`
+                : 'Pending'}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-muted">
+              Strength {strongestDriver ? formatMetric(strongestDriver.topFeature.relative_strength, { digits: 1 }) : 'n/a'}
+            </p>
+          </article>
+
+          <article className="rounded-[20px] border border-stroke/70 bg-card/70 p-4">
+            <p className="text-xs uppercase tracking-[0.18em] text-muted">Avg directional agreement</p>
+            <p className="mt-2 text-lg font-semibold text-ink">
+              {formatPct(averageTopDriverDirectionalAccuracy)}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-muted">
+              Mean top-driver directional hit rate across available stocks.
+            </p>
+          </article>
+        </div>
+
+        <article className="rounded-[20px] border border-stroke/70 bg-card/70 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs uppercase tracking-[0.18em] text-muted">Global driver leaderboard</p>
+            <p className="text-xs text-muted">Top 3 by prevalence</p>
+          </div>
+          {globalFeatureLeaderboard.length > 0 ? (
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+              {globalFeatureLeaderboard.map((entry, index) => (
+                <div key={entry.label} className="rounded-[14px] border border-stroke/60 bg-card/80 p-3">
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted">#{index + 1}</p>
+                  <p className="mt-1 text-sm font-semibold text-ink">{entry.label}</p>
+                  <p className="mt-1 text-xs text-muted">
+                    {entry.count} stock{entry.count > 1 ? 's' : ''}
+                  </p>
+                  <p className="mt-1 text-xs text-muted">
+                    Avg strength {formatMetric(entry.averageStrength, { digits: 1 })}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-xs leading-5 text-muted">
+              Waiting for enough feature snapshots to build a leaderboard.
+            </p>
+          )}
+        </article>
+
+        {featureEffects.error && Object.keys(featureEffects.dataByStock).length === 0 ? (
+          renderInlineError(featureEffects.error, featureEffects.hint, featureEffects.retry)
+        ) : null}
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          {activeStocks.map((stock) => (
+            <TopFeatureCard
+              key={stock.id}
+              stock={stock}
+              topFeature={featureEffects.dataByStock[stock.id]?.features[0]}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
             <p className="eyebrow">Stock Cards</p>
             <h3 className="mt-2 text-2xl text-ink">Five-stock monitoring grid</h3>
           </div>
@@ -509,6 +689,57 @@ interface StockPulseCardProps {
   reportsError: string | null
   retrainingError: string | null
   onRetry: () => void
+}
+
+interface TopFeatureCardProps {
+  stock: StockConfig
+  topFeature: FeatureEffectEntryResponse | undefined
+}
+
+const TopFeatureCard = ({ stock, topFeature }: TopFeatureCardProps) => {
+  return (
+    <article className="card-surface p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-base font-semibold text-ink">{stock.display_name}</p>
+          <p className="mt-1 text-xs uppercase tracking-[0.18em] text-muted">{stock.id}</p>
+        </div>
+        <span
+          className="h-2.5 w-2.5 rounded-full"
+          style={{ backgroundColor: stock.color }}
+        />
+      </div>
+
+      {topFeature ? (
+        <div className="mt-4 space-y-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] text-muted">Top driver</p>
+            <p className="mt-1 text-lg font-semibold text-ink">{topFeature.label}</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-xs text-muted">
+            <p>Strength {formatMetric(topFeature.relative_strength, { digits: 1 })}</p>
+            <p>Corr {typeof topFeature.pearson_correlation === 'number' ? topFeature.pearson_correlation.toFixed(3) : 'n/a'}</p>
+            <p>Dir {formatPct(topFeature.directional_accuracy)}</p>
+          </div>
+          <p className="text-xs leading-5 text-muted">{topFeature.frequency}</p>
+        </div>
+      ) : (
+        <div className="mt-4 rounded-[16px] border border-stroke/70 bg-card/70 p-3">
+          <p className="text-xs leading-5 text-muted">Feature analysis is not available yet for this stock.</p>
+        </div>
+      )}
+
+      <div className="mt-4 border-t border-stroke/60 pt-3 text-xs font-semibold uppercase tracking-[0.18em]">
+        <Link
+          to={`/training?stock=${stock.id}`}
+          aria-label={`Open training analysis for ${stock.display_name}.`}
+          className="text-teal transition hover:text-ink"
+        >
+          Open analysis
+        </Link>
+      </div>
+    </article>
+  )
 }
 
 const StockPulseCard = ({

@@ -56,6 +56,7 @@ import { useStftFrames } from '../hooks/useStftFrames'
 type PlaybackMode = 'idle' | 'paused' | 'playing' | 'stepping'
 
 const PLAYBACK_INTERVAL_MS = 620
+const SPEED_PRESETS = [0.5, 1, 1.5, 2, 3, 4, 5]
 
 const resolveTheme = () => {
   return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
@@ -307,7 +308,7 @@ const HowItWorksContent = ({
             <input
               type="range"
               min="0.5"
-              max="2"
+              max="5"
               step="0.25"
               value={speedMultiplier}
               disabled={Boolean(prefersReducedMotion)}
@@ -319,6 +320,35 @@ const HowItWorksContent = ({
             />
             <span>{speedMultiplier.toFixed(2)}x</span>
           </label>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
+            Quick speed
+          </span>
+          {SPEED_PRESETS.map((value) => {
+            const isActive = Math.abs(speedMultiplier - value) < 0.001
+            return (
+              <button
+                key={value}
+                type="button"
+                disabled={Boolean(prefersReducedMotion)}
+                onClick={() => {
+                  setSpeedMultiplier(value)
+                }}
+                className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] transition ${
+                  prefersReducedMotion
+                    ? 'cursor-not-allowed border-stroke/70 text-muted'
+                    : isActive
+                      ? 'border-teal/40 bg-teal/10 text-teal'
+                      : 'border-stroke/70 text-muted hover:border-teal/30 hover:text-teal'
+                }`}
+                aria-label={`Set playback speed to ${value.toFixed(2)}x.`}
+              >
+                {value.toFixed(2)}x
+              </button>
+            )
+          })}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
