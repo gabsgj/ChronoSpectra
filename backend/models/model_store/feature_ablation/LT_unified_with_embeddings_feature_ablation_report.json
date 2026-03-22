@@ -1,0 +1,137 @@
+{
+  "stock_id": "LT",
+  "mode": "unified_with_embeddings",
+  "generated_at": "2026-03-22T13:34:24.893512Z",
+  "report_path": "/app/backend/models/model_store/feature_ablation/LT_unified_with_embeddings_feature_ablation_report.json",
+  "configured_channels": [
+    "price",
+    "index",
+    "usd_inr",
+    "revenue",
+    "profit"
+  ],
+  "transform_name": "stft",
+  "entries": [
+    {
+      "label": "baseline",
+      "channels": [
+        "price",
+        "index",
+        "usd_inr",
+        "revenue",
+        "profit"
+      ],
+      "removed_channel": null,
+      "mse": 357778.96875,
+      "rmse": 598.1462770510237,
+      "mae": 560.785888671875,
+      "mape": 14.990256309509277,
+      "directional_accuracy": 55.00000000000001,
+      "delta_mse": null,
+      "delta_rmse": null,
+      "delta_mae": null,
+      "delta_mape": null,
+      "delta_directional_accuracy": null
+    },
+    {
+      "label": "minus_price",
+      "channels": [
+        "index",
+        "usd_inr",
+        "revenue",
+        "profit"
+      ],
+      "removed_channel": "price",
+      "mse": 63944.39453125,
+      "rmse": 252.87228897459286,
+      "mae": 196.08584594726562,
+      "mape": 5.267611503601074,
+      "directional_accuracy": 58.63636363636363,
+      "delta_mse": -293834.57421875,
+      "delta_rmse": -345.2739880764309,
+      "delta_mae": -364.7000427246094,
+      "delta_mape": -9.722644805908203,
+      "delta_directional_accuracy": 3.636363636363626
+    },
+    {
+      "label": "minus_index",
+      "channels": [
+        "price",
+        "usd_inr",
+        "revenue",
+        "profit"
+      ],
+      "removed_channel": "index",
+      "mse": 47970.03515625,
+      "rmse": 219.02062723919408,
+      "mae": 155.002197265625,
+      "mape": 4.191966533660889,
+      "directional_accuracy": 60.0,
+      "delta_mse": -309808.93359375,
+      "delta_rmse": -379.12564981182965,
+      "delta_mae": -405.78369140625,
+      "delta_mape": -10.798289775848389,
+      "delta_directional_accuracy": 4.999999999999993
+    },
+    {
+      "label": "minus_usd_inr",
+      "channels": [
+        "price",
+        "index",
+        "revenue",
+        "profit"
+      ],
+      "removed_channel": "usd_inr",
+      "mse": 496665.5,
+      "rmse": 704.7449893401158,
+      "mae": 668.343017578125,
+      "mape": 17.76801300048828,
+      "directional_accuracy": 55.00000000000001,
+      "delta_mse": 138886.53125,
+      "delta_rmse": 106.59871228909208,
+      "delta_mae": 107.55712890625,
+      "delta_mape": 2.777756690979004,
+      "delta_directional_accuracy": 0.0
+    },
+    {
+      "label": "minus_revenue",
+      "channels": [
+        "price",
+        "index",
+        "usd_inr",
+        "profit"
+      ],
+      "removed_channel": "revenue",
+      "mse": 1680112.25,
+      "rmse": 1296.1914403358787,
+      "mae": 1269.7734375,
+      "mape": 33.64092254638672,
+      "directional_accuracy": 55.00000000000001,
+      "delta_mse": 1322333.28125,
+      "delta_rmse": 698.045163284855,
+      "delta_mae": 708.987548828125,
+      "delta_mape": 18.65066623687744,
+      "delta_directional_accuracy": 0.0
+    },
+    {
+      "label": "minus_profit",
+      "channels": [
+        "price",
+        "index",
+        "usd_inr",
+        "revenue"
+      ],
+      "removed_channel": "profit",
+      "mse": 60939.8515625,
+      "rmse": 246.85998372052933,
+      "mae": 189.99456787109375,
+      "mape": 5.008112907409668,
+      "directional_accuracy": 49.54545454545455,
+      "delta_mse": -296839.1171875,
+      "delta_rmse": -351.2862933304944,
+      "delta_mae": -370.79132080078125,
+      "delta_mape": -9.98214340209961,
+      "delta_directional_accuracy": -5.45454545454546
+    }
+  ]
+}
