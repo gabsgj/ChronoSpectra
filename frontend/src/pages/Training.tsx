@@ -24,9 +24,11 @@ import { useRetrainingProgress } from '../hooks/useRetrainingProgress'
 import { useRetrainingStatus } from '../hooks/useRetrainingStatus'
 import { useTrainingReportDetail } from '../hooks/useTrainingReportDetail'
 import type {
+  FeatureAblationReportResponse,
   ModelMode,
   ThemeMode,
   TrainingEpochMetrics,
+  VariantModelMode,
 } from '../types'
 
 const resolveTheme = (): ThemeMode => {
@@ -105,6 +107,10 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
   const [downloadMessage, setDownloadMessage] = useState<string | null>(null)
   const [downloadError, setDownloadError] = useState<string | null>(null)
   const [handledRunId, setHandledRunId] = useState<string | null>(null)
+  const [ablationReport, setAblationReport] = useState<FeatureAblationReportResponse | null>(null)
+  const [ablationLoading, setAblationLoading] = useState(false)
+  const [ablationError, setAblationError] = useState<string | null>(null)
+  const [ablationHint, setAblationHint] = useState<string | null>(null)
 
   const retrainingEntries = useMemo(() => {
     return [...(retrainingLogs.data?.retrain_history ?? [])]
@@ -127,6 +133,9 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
   const latestEpoch = liveEpochHistory.at(-1)
   const notebookModes = resolveNotebookModes(appConfig.model_mode)
   const trainingRuntime = trainingReports.data?.runtime ?? null
+  const ablationMode: VariantModelMode = appConfig.model_mode === 'both'
+    ? 'per_stock'
+    : appConfig.model_mode
 
   const refreshSelectedReport = useEffectEvent(() => {
     reportDetail.retry()
@@ -187,6 +196,28 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
       setDownloadError(formattedError.error)
     } finally {
       setDownloadingMode(null)
+    }
+  }
+
+  const runFeatureAblation = async () => {
+    setAblationLoading(true)
+    setAblationError(null)
+    setAblationHint(null)
+    try {
+      const report = await apiClient.runFeatureAblation(stock.id, {
+        mode: ablationMode,
+        epochs: 30,
+      })
+      setAblationReport(report)
+    } catch (error) {
+      const formattedError = formatApiError(
+        error,
+        'Unable to run feature ablation.',
+      )
+      setAblationError(formattedError.error)
+      setAblationHint(formattedError.hint)
+    } finally {
+      setAblationLoading(false)
     }
   }
 
@@ -408,6 +439,78 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
             </p>
           ) : null}
         </article>
+      </section>
+
+      <section className="card-surface space-y-5 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="eyebrow">Feature Contribution Analysis</p>
+            <h3 className="mt-2 text-2xl text-ink">Channel ablation report</h3>
+            <p className="mt-2 max-w-3xl text-sm leading-7 text-muted">
+              Runs baseline training and then removes one input channel at a time to estimate
+              each channel&apos;s effect on evaluation metrics.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void runFeatureAblation()}
+            disabled={ablationLoading}
+            className="rounded-full border border-teal/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-teal transition hover:bg-teal/10 disabled:cursor-wait disabled:opacity-60"
+            aria-label={`Run feature-channel ablation for ${stock.display_name}.`}
+          >
+            {ablationLoading ? 'Running ablation...' : 'Run ablation'}
+          </button>
+        </div>
+
+        <p className="text-sm text-muted">
+          Mode: {ablationMode.replaceAll('_', ' ')} | Configured channels:{' '}
+          {(ablationReport?.configured_channels ?? ['price']).join(', ')}
+        </p>
+
+        {ablationError ? (
+          <p className="rounded-[18px] border border-amber/30 bg-amber/10 px-4 py-3 text-sm leading-6 text-muted">
+            {ablationError}
+            {ablationHint ? ` ${ablationHint}` : ''}
+          </p>
+        ) : null}
+
+        {ablationReport ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full border-separate border-spacing-y-2 text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-[0.18em] text-muted">
+                  <th className="px-3 py-2">Variant</th>
+                  <th className="px-3 py-2">Channels</th>
+                  <th className="px-3 py-2">MSE</th>
+                  <th className="px-3 py-2">Delta MSE</th>
+                  <th className="px-3 py-2">Dir Acc</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ablationReport.entries.map((entry) => (
+                  <tr key={entry.label} className="rounded-[16px] border border-stroke/60 bg-card/75">
+                    <td className="px-3 py-2 font-semibold text-ink">
+                      {entry.removed_channel ? `Minus ${entry.removed_channel}` : 'Baseline'}
+                    </td>
+                    <td className="px-3 py-2 text-muted">{entry.channels.join(', ')}</td>
+                    <td className="px-3 py-2 text-muted">{entry.mse.toFixed(4)}</td>
+                    <td className="px-3 py-2 text-muted">
+                      {entry.delta_mse === null
+                        ? '--'
+                        : `${entry.delta_mse > 0 ? '+' : ''}${entry.delta_mse.toFixed(4)}`}
+                    </td>
+                    <td className="px-3 py-2 text-muted">{entry.directional_accuracy.toFixed(2)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-muted">
+            Run ablation to compare baseline vs channel-drop variants (price, index, usd_inr,
+            revenue, profit).
+          </p>
+        )}
       </section>
 
       <LossCurveChart

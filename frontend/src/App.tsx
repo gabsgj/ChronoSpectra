@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 
 import { MobileNav } from './components/layout/MobileNav'
@@ -45,6 +45,29 @@ function AppShell({ isTrainingRoute, onToggleTheme, theme }: AppShellProps) {
   const trainingReports = useSharedTrainingReports()
   const trainingRuntime = trainingReports.data?.runtime ?? null
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+
+  useEffect(() => {
+    if (!isMobileSidebarOpen) {
+      document.body.style.overflow = ''
+      return
+    }
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsMobileSidebarOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleEscape)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', handleEscape)
+    }
+  }, [isMobileSidebarOpen])
 
   return (
     <div className="relative min-h-screen overflow-x-clip bg-shell text-ink">
@@ -104,6 +127,17 @@ function AppShell({ isTrainingRoute, onToggleTheme, theme }: AppShellProps) {
             />
           </div>
         </div>
+      ) : null}
+
+      {!isMobileSidebarOpen ? (
+        <button
+          type="button"
+          onClick={() => setIsMobileSidebarOpen(true)}
+          className="fixed bottom-4 right-4 z-40 inline-flex h-12 items-center justify-center rounded-full border border-teal/30 bg-card/95 px-4 text-xs font-semibold uppercase tracking-[0.18em] text-teal shadow-[0_20px_38px_-20px_rgba(8,15,28,0.42)] transition hover:bg-teal/10 lg:hidden"
+          aria-label="Open sidebar navigation"
+        >
+          Menu
+        </button>
       ) : null}
     </div>
   )

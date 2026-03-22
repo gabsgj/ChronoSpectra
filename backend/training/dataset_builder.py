@@ -3,11 +3,16 @@ from __future__ import annotations
 from typing import Any
 
 import numpy as np
+import pandas as pd
 
 from config import find_stock
 from data.cache.data_cache import DataCache
-from signal_processing.price_signal_loader import PriceSignalLoader
+from data.aligners.daily_aligner import DailyAligner
+from data.aligners.quarterly_aligner import QuarterlyAligner
+from data.fetchers import get_fetcher
+from data.normalizers.minmax_normalizer import MinMaxNormalizer
 from signal_processing.transforms import get_transform
+from training.feature_channels import resolve_feature_channels
 from training.training_types import (
     DatasetBundle,
     ScalingMetadata,
@@ -27,10 +32,11 @@ class DatasetBuilder:
         transform_name: str | None = None,
     ) -> None:
         self.config = app_config
-        self.signal_loader = PriceSignalLoader(app_config, cache)
+        self.cache = cache
         self.transform_name = (
             transform_name or app_config["signal_processing"]["default_transform"]
         ).lower()
+        self.feature_channels = resolve_feature_channels(app_config)
         self.stock_index = {
             stock["id"]: index for index, stock in enumerate(app_config["active_stocks"])
         }
@@ -125,14 +131,14 @@ class DatasetBuilder:
         lookback_days: int,
         prediction_horizon_days: int,
     ) -> tuple[list[TrainingSampleRecord], ScalingMetadata]:
-        price_signal = self.signal_loader.load(stock_config)
+        feature_series = self._load_feature_series(stock_config)
         scaler = ScalingMetadata(
             stock_id=stock_config["id"],
-            minimum_value=price_signal.minimum_value,
-            maximum_value=price_signal.maximum_value,
+            minimum_value=feature_series["price_minimum_value"],
+            maximum_value=feature_series["price_maximum_value"],
         )
         upper_bound = (
-            len(price_signal.normalized_values)
+            len(feature_series["timestamps"])
             - lookback_days
             - prediction_horizon_days
             + 1
@@ -145,7 +151,7 @@ class DatasetBuilder:
                 start_index,
                 lookback_days,
                 prediction_horizon_days,
-                price_signal,
+                feature_series,
                 transform,
             )
             for start_index in range(upper_bound)
@@ -158,25 +164,172 @@ class DatasetBuilder:
         start_index: int,
         lookback_days: int,
         prediction_horizon_days: int,
-        price_signal: Any,
+        feature_series: dict[str, Any],
         transform: Any,
     ) -> TrainingSampleRecord:
         stop_index = start_index + lookback_days
         window_end_index = stop_index - 1
         label_index = window_end_index + prediction_horizon_days
-        window_signal = price_signal.normalized_values[start_index:stop_index]
-        spectrogram, _, _ = transform.transform(window_signal)
+
+        channel_spectrograms: list[np.ndarray] = []
+        for channel_name in self.feature_channels:
+            channel_values = feature_series["normalized_by_channel"][channel_name]
+            window_signal = channel_values[start_index:stop_index]
+            spectrogram, _, _ = transform.transform(window_signal)
+            channel_spectrograms.append(np.asarray(spectrogram, dtype=np.float32))
+
+        stacked_inputs = np.stack(channel_spectrograms, axis=0)
+
+        price_normalized = feature_series["normalized_price_values"]
+        price_raw = feature_series["raw_price_values"]
+        timestamps = feature_series["timestamps"]
+
         return TrainingSampleRecord(
             stock_id=stock_id,
             stock_index=self.stock_index[stock_id],
-            inputs=np.expand_dims(np.asarray(spectrogram, dtype=np.float32), axis=0),
-            target_normalized=float(price_signal.normalized_values[label_index]),
-            target_raw=float(price_signal.raw_values[label_index]),
-            reference_normalized=float(price_signal.normalized_values[window_end_index]),
-            reference_raw=float(price_signal.raw_values[window_end_index]),
-            window_end_timestamp=price_signal.timestamps[window_end_index],
-            label_timestamp=price_signal.timestamps[label_index],
+            inputs=stacked_inputs,
+            target_normalized=float(price_normalized[label_index]),
+            target_raw=float(price_raw[label_index]),
+            reference_normalized=float(price_normalized[window_end_index]),
+            reference_raw=float(price_raw[window_end_index]),
+            window_end_timestamp=timestamps[window_end_index],
+            label_timestamp=timestamps[label_index],
         )
+
+    def build_latest_input_window(self, stock_config: dict[str, Any]) -> dict[str, Any]:
+        feature_series = self._load_feature_series(stock_config)
+        lookback_days = self._resolve_lookback_days()
+        if len(feature_series["timestamps"]) < lookback_days:
+            raise ValueError(
+                f"Not enough aligned feature history to build a prediction window for {stock_config['id']}."
+            )
+
+        transform = get_transform(self.transform_name, self.config)
+        channel_spectrograms: list[np.ndarray] = []
+        for channel_name in self.feature_channels:
+            channel_values = feature_series["normalized_by_channel"][channel_name]
+            window_signal = channel_values[-lookback_days:]
+            spectrogram, _, _ = transform.transform(window_signal)
+            channel_spectrograms.append(np.asarray(spectrogram, dtype=np.float32))
+
+        stacked_inputs = np.stack(channel_spectrograms, axis=0)
+        return {
+            "inputs": np.expand_dims(stacked_inputs, axis=0),
+            "ticker": feature_series["ticker"],
+            "transform_name": self.transform_name,
+            "latest_close": float(feature_series["raw_price_values"][-1]),
+            "as_of_timestamp": feature_series["timestamps"][-1],
+            "signal_window_length": lookback_days,
+            "feature_channels": list(self.feature_channels),
+        }
+
+    def _load_feature_series(self, stock_config: dict[str, Any]) -> dict[str, Any]:
+        years = int(stock_config["model"]["training_data_years"])
+        fetcher = get_fetcher(stock_config, self.config)
+        stock_id = stock_config["id"]
+
+        ohlcv_frame = self.cache.get_or_set(
+            f"ohlcv:{stock_id}:{years}",
+            lambda: fetcher.fetch_historical_ohlcv(years),
+            900,
+        )
+
+        selected_channels = set(self.feature_channels)
+        include_index = "index" in selected_channels
+        include_usd_inr = "usd_inr" in selected_channels
+        include_revenue = "revenue" in selected_channels
+        include_profit = "profit" in selected_channels
+
+        market_index_frame = pd.DataFrame()
+        if include_index:
+            market_index_frame = self.cache.get_or_set(
+                f"market-index:{stock_id}:{years}",
+                fetcher.fetch_market_index,
+                900,
+            )
+
+        currency_frame = pd.DataFrame()
+        if include_usd_inr:
+            currency_frame = self.cache.get_or_set(
+                f"currency:{stock_id}:{years}",
+                fetcher.fetch_currency_pair,
+                900,
+            )
+
+        daily_tracks: dict[str, pd.DataFrame] = {
+            "price": ohlcv_frame[["close"]],
+        }
+        if include_index:
+            daily_tracks["index"] = market_index_frame
+        if include_usd_inr:
+            daily_tracks["usd_inr"] = currency_frame
+
+        aligned_daily = DailyAligner().align(daily_tracks)
+        if aligned_daily.empty or "price" not in aligned_daily.columns:
+            raise ValueError(f"No aligned daily price series found for {stock_id}.")
+
+        working_frame = aligned_daily[["price"]].copy()
+        for optional_daily_channel in ("index", "usd_inr"):
+            if optional_daily_channel in aligned_daily.columns:
+                working_frame[optional_daily_channel] = aligned_daily[optional_daily_channel]
+
+        if include_revenue or include_profit:
+            fundamentals = self.cache.get_or_set(
+                f"fundamentals:{stock_id}",
+                fetcher.fetch_fundamentals,
+                900,
+            )
+            quarterly_tracks: dict[str, pd.DataFrame] = {}
+            if include_revenue:
+                quarterly_tracks["revenue"] = fundamentals.quarterly_revenue
+            if include_profit:
+                quarterly_tracks["profit"] = fundamentals.quarterly_profit
+            aligned_quarterly = QuarterlyAligner().align(quarterly_tracks)
+            if aligned_quarterly.empty:
+                raise ValueError(
+                    f"Quarterly fundamentals are unavailable for requested channels on {stock_id}."
+                )
+            quarterly_on_daily = aligned_quarterly.reindex(working_frame.index).ffill().bfill()
+            for column_name in quarterly_on_daily.columns:
+                working_frame[column_name] = quarterly_on_daily[column_name]
+
+        required_columns = ["price", *[channel for channel in self.feature_channels if channel != "price"]]
+        missing_columns = sorted(column for column in required_columns if column not in working_frame.columns)
+        if missing_columns:
+            raise ValueError(
+                f"Missing required feature channels for {stock_id}: {', '.join(missing_columns)}."
+            )
+
+        filtered_frame = working_frame[required_columns].dropna(how="any").sort_index()
+        if filtered_frame.empty:
+            raise ValueError(f"No aligned feature rows found for {stock_id}.")
+
+        normalized_by_channel: dict[str, np.ndarray] = {}
+        minimum_by_channel: dict[str, float] = {}
+        maximum_by_channel: dict[str, float] = {}
+        for channel_name in required_columns:
+            values = filtered_frame[channel_name].to_numpy(dtype=float)
+            normalizer = MinMaxNormalizer().fit(values)
+            normalized_by_channel[channel_name] = normalizer.transform(values)
+            minimum_by_channel[channel_name] = float(normalizer.minimum_value or 0.0)
+            maximum_by_channel[channel_name] = float(normalizer.maximum_value or 0.0)
+
+        timestamps = [
+            pd.Timestamp(timestamp).tz_localize(None).isoformat()
+            for timestamp in filtered_frame.index
+        ]
+
+        return {
+            "ticker": fetcher.get_resolved_ticker(),
+            "timestamps": timestamps,
+            "raw_price_values": filtered_frame["price"].to_numpy(dtype=float),
+            "normalized_price_values": normalized_by_channel["price"],
+            "normalized_by_channel": normalized_by_channel,
+            "minimum_by_channel": minimum_by_channel,
+            "maximum_by_channel": maximum_by_channel,
+            "price_minimum_value": minimum_by_channel["price"],
+            "price_maximum_value": maximum_by_channel["price"],
+        }
 
     def _check_input_shape(
         self,

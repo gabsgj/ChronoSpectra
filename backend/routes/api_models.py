@@ -159,6 +159,30 @@ class TrainingReportDetailResponse(BaseModel):
     lookback_days: int | None = None
 
 
+class FeatureAblationEntryResponse(BaseModel):
+    label: str
+    channels: list[str]
+    removed_channel: str | None = None
+    mse: float
+    rmse: float
+    mae: float
+    mape: float
+    directional_accuracy: float
+    delta_mse: float | None = None
+    delta_rmse: float | None = None
+    delta_mae: float | None = None
+    delta_mape: float | None = None
+    delta_directional_accuracy: float | None = None
+
+
+class FeatureAblationReportResponse(BaseModel):
+    stock_id: str
+    mode: str
+    configured_channels: list[str]
+    transform_name: str
+    entries: list[FeatureAblationEntryResponse]
+
+
 class MarketStatusResponse(BaseModel):
     exchange: str
     timezone: str

@@ -303,7 +303,7 @@ const HowItWorksContent = ({
           >
             Step
           </button>
-          <label className="ml-auto flex min-w-[15rem] items-center gap-3 text-xs uppercase tracking-[0.18em] text-muted">
+          <label className="flex w-full items-center gap-3 text-xs uppercase tracking-[0.18em] text-muted sm:ml-auto sm:w-auto sm:min-w-[15rem]">
             <span>Speed</span>
             <input
               type="range"

@@ -10,6 +10,8 @@ from fastapi.responses import StreamingResponse
 
 from routes.api_models import (
     APIErrorResponse,
+    FeatureAblationEntryResponse,
+    FeatureAblationReportResponse,
     ModelMetricsSummary,
     TrainingReportCollectionResponse,
     TrainingReportDetailResponse,
@@ -19,6 +21,8 @@ from routes.api_models import (
     TrainingStartResponse,
 )
 from routes.utils import load_json_file, raise_structured_http_error, require_stock
+from training.feature_ablation import run_feature_ablation
+from training.feature_channels import resolve_feature_channels
 from training.runtime_state import (
     TrainingAlreadyRunningError,
     TrainingConfigurationError,
@@ -177,6 +181,80 @@ def training_report_detail(
         prediction_horizon_days=_as_int(payload.get("prediction_horizon_days")),
         transform_name=_as_str(payload.get("transform_name")),
         lookback_days=_as_int(payload.get("lookback_days")),
+    )
+
+
+@router.post(
+    "/feature-ablation/{stock_id}",
+    response_model=FeatureAblationReportResponse,
+    responses=TRAINING_ERROR_RESPONSES,
+)
+def feature_ablation_report(
+    stock_id: str,
+    request: Request,
+    mode: str | None = Query(None),
+    epochs: int | None = Query(None, ge=1, le=500),
+) -> FeatureAblationReportResponse:
+    stock = require_stock(request, stock_id)
+    resolved_mode = (mode or "per_stock").lower()
+    try:
+        ablation_results = run_feature_ablation(
+            app_config=request.app.state.config,
+            stock_id=stock["id"],
+            mode=resolved_mode,
+            epochs_override=epochs,
+        )
+    except ValueError as exc:
+        raise_structured_http_error(422, "invalid_ablation_request", str(exc))
+    except Exception as exc:
+        raise_structured_http_error(
+            503,
+            "ablation_failed",
+            "Feature ablation run failed.",
+            hint=str(exc),
+        )
+
+    baseline = next((result for result in ablation_results if result.removed_channel is None), None)
+    if baseline is None:
+        raise_structured_http_error(
+            503,
+            "ablation_failed",
+            "Baseline ablation result is missing.",
+        )
+
+    entries: list[FeatureAblationEntryResponse] = []
+    baseline_metrics = baseline.metrics
+    for result in ablation_results:
+        metrics = result.metrics
+        is_baseline = result.removed_channel is None
+        entries.append(
+            FeatureAblationEntryResponse(
+                label=result.label,
+                channels=result.channels,
+                removed_channel=result.removed_channel,
+                mse=metrics.mse,
+                rmse=metrics.rmse,
+                mae=metrics.mae,
+                mape=metrics.mape,
+                directional_accuracy=metrics.directional_accuracy,
+                delta_mse=None if is_baseline else metrics.mse - baseline_metrics.mse,
+                delta_rmse=None if is_baseline else metrics.rmse - baseline_metrics.rmse,
+                delta_mae=None if is_baseline else metrics.mae - baseline_metrics.mae,
+                delta_mape=None if is_baseline else metrics.mape - baseline_metrics.mape,
+                delta_directional_accuracy=(
+                    None
+                    if is_baseline
+                    else metrics.directional_accuracy - baseline_metrics.directional_accuracy
+                ),
+            )
+        )
+
+    return FeatureAblationReportResponse(
+        stock_id=stock["id"],
+        mode=resolved_mode,
+        configured_channels=resolve_feature_channels(request.app.state.config),
+        transform_name=str(request.app.state.config["signal_processing"]["default_transform"]),
+        entries=entries,
     )
 
 

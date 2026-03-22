@@ -28,6 +28,7 @@ from training.training_types import (
     SpectrogramDataset,
     TrainingRunResult,
 )
+from training.feature_channels import resolve_feature_channels
 
 RETRAINING_DIR = Path(__file__).resolve().parent
 RETRAIN_LOG_PATH = RETRAINING_DIR / "retrain_log.json"
@@ -293,12 +294,16 @@ class RetrainWorker:
         return on_epoch
 
     def _build_model(self, mode: str) -> BaseModel:
+        input_channels = len(resolve_feature_channels(self.config))
         if mode == "per_stock":
-            return PerStockCNN()
+            return PerStockCNN(in_channels=input_channels)
         if mode == "unified":
-            return UnifiedCNN()
+            return UnifiedCNN(in_channels=input_channels)
         if mode == "unified_with_embeddings":
-            return UnifiedCNNWithEmbeddings(num_stocks=len(self.config["active_stocks"]))
+            return UnifiedCNNWithEmbeddings(
+                num_stocks=len(self.config["active_stocks"]),
+                in_channels=input_channels,
+            )
         raise ValueError(f"Unsupported retraining mode '{mode}'.")
 
     def _load_trained_model(self, mode: str, checkpoint_path: Path) -> BaseModel:

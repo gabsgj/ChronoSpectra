@@ -54,7 +54,7 @@ export function Footer() {
               Website
             </a>
             <a
-              href="https://github.com/gabsgj/Baum-Welch-Algorithm"
+              href="https://github.com/gabsgj/chronospectra"
               target="_blank"
               rel="noopener noreferrer"
               className="transition-colors hover:text-teal"

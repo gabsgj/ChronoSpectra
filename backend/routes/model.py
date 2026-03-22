@@ -22,8 +22,7 @@ from routes.api_models import (
     PredictionResponse,
 )
 from routes.utils import load_json_file, raise_structured_http_error, require_stock
-from signal_processing.price_signal_loader import PriceSignalLoader
-from signal_processing.transforms import get_transform
+from training.dataset_builder import DatasetBuilder
 from training.training_types import ScalingMetadata
 
 router = APIRouter(tags=["model"])
@@ -215,9 +214,9 @@ def build_latest_input_window(
     app_config: dict[str, Any],
     cache: DataCache,
 ) -> dict[str, Any]:
-    loader = PriceSignalLoader(app_config, cache)
+    builder = DatasetBuilder(app_config, cache)
     try:
-        signal = loader.load(stock)
+        return builder.build_latest_input_window(stock)
     except ValueError as exc:
         raise_structured_http_error(
             503,
@@ -225,28 +224,6 @@ def build_latest_input_window(
             f"Prediction inputs for '{stock['id']}' are currently unavailable.",
             hint=str(exc),
         )
-    transform_name = str(app_config["signal_processing"]["default_transform"]).lower()
-    transform = get_transform(transform_name, app_config)
-    lookback_days = resolve_lookback_days(app_config)
-    if len(signal.normalized_values) < lookback_days:
-        raise_structured_http_error(
-            422,
-            "insufficient_history",
-            (
-                "Not enough price history is available to build a prediction "
-                f"window for '{stock['id']}'."
-            ),
-        )
-    window = signal.normalized_values[-lookback_days:]
-    spectrogram, _, _ = transform.transform(window)
-    return {
-        "inputs": np.expand_dims(np.asarray(spectrogram, dtype=np.float32), axis=(0, 1)),
-        "ticker": signal.ticker,
-        "transform_name": transform_name,
-        "latest_close": float(signal.raw_values[-1]),
-        "as_of_timestamp": signal.timestamps[-1],
-        "signal_window_length": lookback_days,
-    }
 
 
 def run_model_prediction(
@@ -288,14 +265,6 @@ def load_scaler_or_error(registry: ModelRegistry, stock_id: str) -> ScalingMetad
             artifact_path=str(scaler_path),
         )
     return loaded_scaler
-
-
-def resolve_lookback_days(app_config: dict[str, Any]) -> int:
-    stft_config = app_config["signal_processing"]["stft"]
-    return max(
-        int(stft_config["window_length"]) * 4,
-        int(stft_config["n_fft"]),
-    )
 
 
 def load_report_payload(mode: str, stock_id: str) -> dict[str, Any]:

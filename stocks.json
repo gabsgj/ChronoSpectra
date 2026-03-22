@@ -160,6 +160,13 @@
     }
   },
   "training": {
+    "feature_channels": [
+      "price",
+      "index",
+      "usd_inr",
+      "revenue",
+      "profit"
+    ],
     "split": {
       "train": 0.7,
       "val": 0.15,

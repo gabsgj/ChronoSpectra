@@ -61,6 +61,7 @@ export interface SignalProcessingConfig {
 }
 
 export interface TrainingConfig {
+  feature_channels?: Array<'price' | 'index' | 'usd_inr' | 'revenue' | 'profit'>
   split: {
     train: number
     val: number
@@ -137,6 +138,21 @@ export interface MarketDataResponse {
   stock_id: string
   ticker: string
   tracks: MarketDataTracks
+}
+
+export interface FeatureEffectEntryResponse {
+  feature: 'revenue' | 'profit' | 'index' | 'usd_inr' | 'price'
+  label: string
+  frequency: string
+  relative_strength: number | null
+  pearson_correlation: number | null
+  directional_accuracy: number | null
+}
+
+export interface FeatureEffectStockResponse {
+  stock_id: string
+  generated_at: string
+  features: FeatureEffectEntryResponse[]
 }
 
 export interface FFTResponse {
@@ -381,6 +397,30 @@ export interface TrainingReportDetailResponse {
   prediction_horizon_days: number | null
   transform_name: string | null
   lookback_days: number | null
+}
+
+export interface FeatureAblationEntryResponse {
+  label: string
+  channels: string[]
+  removed_channel: string | null
+  mse: number
+  rmse: number
+  mae: number
+  mape: number
+  directional_accuracy: number
+  delta_mse: number | null
+  delta_rmse: number | null
+  delta_mae: number | null
+  delta_mape: number | null
+  delta_directional_accuracy: number | null
+}
+
+export interface FeatureAblationReportResponse {
+  stock_id: string
+  mode: VariantModelMode
+  configured_channels: string[]
+  transform_name: TransformName
+  entries: FeatureAblationEntryResponse[]
 }
 
 export interface RetrainingLogEntry {

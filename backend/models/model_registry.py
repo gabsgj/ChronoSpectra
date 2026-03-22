@@ -16,6 +16,7 @@ from models.base_model import (
 from models.per_stock_cnn import PerStockCNN
 from models.unified_cnn import UnifiedCNN
 from models.unified_cnn_with_embeddings import UnifiedCNNWithEmbeddings
+from training.feature_channels import resolve_feature_channels
 
 MODEL_NOT_TRAINED_HINT = (
     "Trigger local training or run the Colab notebook to generate the checkpoint in "
@@ -52,6 +53,8 @@ class ModelRegistry:
         self.map_location = map_location
         self.stock_ids = [stock["id"] for stock in app_config["active_stocks"]]
         self.stock_index = {stock_id: index for index, stock_id in enumerate(self.stock_ids)}
+        self.feature_channels = resolve_feature_channels(app_config)
+        self.input_channels = len(self.feature_channels)
 
     def configured_modes(self) -> list[str]:
         if self.model_mode == "both":
@@ -135,11 +138,14 @@ class ModelRegistry:
 
     def _instantiate_model(self, mode: str) -> BaseModel:
         if mode == "per_stock":
-            return PerStockCNN()
+            return PerStockCNN(in_channels=self.input_channels)
         if mode == "unified":
-            return UnifiedCNN()
+            return UnifiedCNN(in_channels=self.input_channels)
         if mode == "unified_with_embeddings":
-            return UnifiedCNNWithEmbeddings(num_stocks=len(self.stock_ids))
+            return UnifiedCNNWithEmbeddings(
+                num_stocks=len(self.stock_ids),
+                in_channels=self.input_channels,
+            )
         raise ValueError(f"Unsupported model mode '{mode}'.")
 
     def _load_state_dict(self, artifact_path: Path) -> dict[str, torch.Tensor]:

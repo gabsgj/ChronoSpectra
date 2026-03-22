@@ -30,8 +30,9 @@ In practical terms, it is a full-stack application that takes historical market 
 
 ### Live Deployment
 
-- Live App: `ADD_YOUR_DEPLOYED_FRONTEND_URL_HERE`
-- Live API: `ADD_YOUR_DEPLOYED_BACKEND_URL_HERE`
+- Live App: `https://chronospectra.gabrieljames.me/`
+
+- Repository: `https://github.com/gabsgj/chronospectra`
 
 ### Screenshots
 

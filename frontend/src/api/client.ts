@@ -17,6 +17,7 @@ import type {
   STFTFramesResponse,
   TrainingReportCollectionResponse,
   TrainingReportDetailResponse,
+  FeatureAblationReportResponse,
   TransformName,
   VariantModelMode,
 } from '../types'
@@ -165,6 +166,27 @@ export const apiClient = {
       `/training/report-detail/${stockId}`,
       { signal },
     ),
+  runFeatureAblation: (
+    stockId: string,
+    options?: {
+      mode?: VariantModelMode
+      epochs?: number
+      signal?: AbortSignal
+    },
+  ) => {
+    const query = buildSearchParams({
+      mode: options?.mode,
+      epochs: options?.epochs,
+    })
+    const suffix = query ? `?${query}` : ''
+    return requestJson<FeatureAblationReportResponse>(
+      `/training/feature-ablation/${stockId}${suffix}`,
+      {
+        method: 'POST',
+        signal: options?.signal,
+      },
+    )
+  },
   getRetrainingStatus: (signal?: AbortSignal) =>
     requestJson<RetrainingStatusResponse>('/retraining/status', { signal }),
   getRetrainingLogs: (signal?: AbortSignal) =>
