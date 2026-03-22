@@ -46,7 +46,15 @@ const resolveApiBaseUrl = () => {
   const configuredUrl =
     import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_BASE_URL
   if (configuredUrl) {
-    return configuredUrl.replace(/\/$/, '')
+    const normalizedConfiguredUrl = configuredUrl.replace(/\/$/, '')
+    if (typeof window !== 'undefined') {
+      const isFrontendLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname)
+      const isConfiguredLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(normalizedConfiguredUrl)
+      if (!isFrontendLocalhost && isConfiguredLocalhost) {
+        return window.location.origin.replace(/\/$/, '')
+      }
+    }
+    return normalizedConfiguredUrl
   }
   if (typeof window !== 'undefined') {
     return window.location.origin.replace(/\/$/, '')

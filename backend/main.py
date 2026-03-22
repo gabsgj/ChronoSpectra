@@ -54,6 +54,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+logger.info("Allowed CORS origins: %s", ", ".join(ENVIRONMENT["ALLOWED_FRONTEND_ORIGINS"]))
 app.state.config = APP_CONFIG
 app.state.environment = ENVIRONMENT
 

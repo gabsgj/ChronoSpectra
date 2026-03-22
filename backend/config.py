@@ -139,7 +139,7 @@ def _strip_wrapping_quotes(value: str) -> str:
 
 
 def _split_csv(value: str) -> list[str]:
-    origins = [entry.strip() for entry in value.split(",") if entry.strip()]
+    origins = [entry.strip().rstrip("/") for entry in value.split(",") if entry.strip()]
     return origins or [str(DEFAULT_ENVIRONMENT["FRONTEND_URL"])]
 
 
