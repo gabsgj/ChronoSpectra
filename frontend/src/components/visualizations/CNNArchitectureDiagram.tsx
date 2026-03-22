@@ -180,7 +180,7 @@ export const CNNArchitectureDiagram = ({
   const embeddingBox: DiagramConnectorBox | null =
     showEmbeddingPath && fusionStage
       ? {
-          height: 118,
+          height: 130,
           width: 262,
           x: 910,
           y: 32,
@@ -386,7 +386,7 @@ export const CNNArchitectureDiagram = ({
                   <text
                     key={line}
                     x={embeddingBox.x + 18}
-                    y={embeddingBox.y + 70 + index * 24}
+                    y={embeddingBox.y + 68 + index * 22}
                     fill={foregroundColor}
                     fontSize="14"
                   >

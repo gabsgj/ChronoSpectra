@@ -3,12 +3,14 @@ import { useSearchParams } from 'react-router-dom'
 
 import { LivePredictionChart } from '../components/charts/LivePredictionChart'
 import { LivePredictionsTable } from '../components/live/LivePredictionsTable'
+import { FeatureAblationReportPanel } from '../components/training/FeatureAblationReportPanel'
 import { LiveStockSelector } from '../components/live/LiveStockSelector'
 import { ExchangeBadge } from '../components/ui/ExchangeBadge'
 import { MarketStatusBadge } from '../components/ui/MarketStatusBadge'
 import { MetricCard } from '../components/ui/MetricCard'
 import { PageGuide } from '../components/ui/PageGuide'
-import { defaultStockId, getStockById } from '../config/stocksConfig'
+import { appConfig, defaultStockId, getStockById } from '../config/stocksConfig'
+import { useFeatureAblationReport } from '../hooks/useFeatureAblationReport'
 import { useLiveMarket } from '../hooks/useLiveMarket'
 import { useMarketStatus } from '../hooks/useMarketStatus'
 import { useModelBacktest } from '../hooks/useModelBacktest'
@@ -75,6 +77,46 @@ const resolveSessionKey = (timestamp: string) => {
     String(parsedDate.getMonth() + 1).padStart(2, '0'),
     String(parsedDate.getDate()).padStart(2, '0'),
   ].join('-')
+}
+
+const resolveProjectedTargetAt = (
+  timestamp: string,
+  predictionHorizonDays: number | null,
+  closeTimeValue: string,
+) => {
+  if (!predictionHorizonDays) {
+    return null
+  }
+
+  const parsedDate = new Date(timestamp)
+  if (Number.isNaN(parsedDate.getTime())) {
+    return null
+  }
+
+  const [hours, minutes, seconds = '00'] = closeTimeValue.split(':')
+  const closeHours = Number(hours)
+  const closeMinutes = Number(minutes)
+  const closeSeconds = Number(seconds)
+  if (
+    !Number.isFinite(closeHours) ||
+    !Number.isFinite(closeMinutes) ||
+    !Number.isFinite(closeSeconds)
+  ) {
+    return null
+  }
+
+  const targetDate = new Date(parsedDate)
+  let remainingSessions = Math.max(predictionHorizonDays, 1)
+  while (remainingSessions > 0) {
+    targetDate.setDate(targetDate.getDate() + 1)
+    const dayOfWeek = targetDate.getDay()
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      remainingSessions -= 1
+    }
+  }
+
+  targetDate.setHours(closeHours, closeMinutes, closeSeconds, 0)
+  return targetDate.toISOString()
 }
 
 const toLivePredictionPoint = (
@@ -202,7 +244,10 @@ const LiveTestingContent = ({
   const marketStatus = useMarketStatus(stock.exchange)
   const liveMarket = useLiveMarket(stock.id, selectedMode)
   const backtest = useModelBacktest(stock.id, 90)
-  const predictionMetrics = usePrediction(liveMarket.history)
+  const ablationMode: VariantModelMode = selectedMode ?? (
+    appConfig.model_mode === 'both' ? 'per_stock' : appConfig.model_mode
+  )
+  const featureAblation = useFeatureAblationReport(stock.id, ablationMode)
   const effectiveMarketOpen =
     liveMarket.snapshot?.market_open ?? marketStatus.data?.market_open ?? false
   const nextOpenAt =
@@ -211,12 +256,6 @@ const LiveTestingContent = ({
     liveMarket.connectionState,
     effectiveMarketOpen,
   )
-  const latestPredictionMode =
-    liveMarket.snapshot?.prediction_mode ?? 'Awaiting stream'
-  const latestPredictionHorizon =
-    liveMarket.snapshot?.prediction_horizon_days ?? null
-  const latestPredictionTargetAt =
-    liveMarket.snapshot?.prediction_target_at ?? null
   const latestProvider =
     liveMarket.snapshot?.live_data_provider ??
     marketStatus.data?.live_data_provider ??
@@ -241,10 +280,6 @@ const LiveTestingContent = ({
         0,
       )
     : 0
-  const spreadCopy =
-    predictionMetrics.spread === null
-      ? 'Waiting'
-      : formatCurrency(predictionMetrics.spread)
   const chartHistory = useMemo(() => {
     if (liveMarket.history.length === 0) {
       return []
@@ -277,6 +312,10 @@ const LiveTestingContent = ({
     return sessionPoints.length > 0 ? sessionPoints : liveMarket.history
   }, [effectiveMarketOpen, liveMarket.history])
   const needsBacktestFallback = !effectiveMarketOpen && chartHistory.length < 3
+  const fallbackPredictionHorizon =
+    liveMarket.snapshot?.prediction_horizon_days ??
+    stock.model.prediction_horizon_days
+  const exchangeCloseTime = appConfig.exchanges[stock.exchange].market_hours.close
 
   const backtestOverlayHistory = useMemo<LivePredictionPoint[]>(() => {
     return (backtest.data?.points ?? []).map((point) => {
@@ -284,13 +323,17 @@ const LiveTestingContent = ({
         actual: point.actual_price,
         market_open: true,
         predicted: point.predicted_price,
-        prediction_horizon_days: latestPredictionHorizon,
+        prediction_horizon_days: fallbackPredictionHorizon,
         prediction_mode: 'backtest',
-        prediction_target_at: null,
+        prediction_target_at: resolveProjectedTargetAt(
+          point.timestamp,
+          fallbackPredictionHorizon,
+          exchangeCloseTime,
+        ),
         timestamp: point.timestamp,
       })
     })
-  }, [backtest.data?.points, latestPredictionHorizon])
+  }, [backtest.data?.points, exchangeCloseTime, fallbackPredictionHorizon])
 
   const overlayPoints = useMemo(() => {
     if (effectiveMarketOpen) {
@@ -311,17 +354,42 @@ const LiveTestingContent = ({
     }
     return overlayPoints.at(-1) ?? null
   }, [liveMarket.snapshot, overlayPoints])
+  const predictionMetrics = usePrediction(overlayPoints)
+  const latestPredictionMode =
+    liveMarket.snapshot?.prediction_mode ??
+    overlayLatestPoint?.prediction_mode ??
+    'Awaiting stream'
+  const latestPredictionHorizon =
+    liveMarket.snapshot?.prediction_horizon_days ??
+    overlayLatestPoint?.prediction_horizon_days ??
+    null
+  const latestPredictionTargetAt =
+    liveMarket.snapshot?.prediction_target_at ??
+    overlayLatestPoint?.prediction_target_at ??
+    null
+  const spreadCopy =
+    predictionMetrics.spread === null
+      ? 'Waiting'
+      : formatCurrency(predictionMetrics.spread)
 
   const combinedError =
     liveMarket.error ??
     marketStatus.error ??
     (needsBacktestFallback ? backtest.error : null)
   const combinedHint =
-    marketStatus.hint ?? (needsBacktestFallback ? backtest.hint : null)
+    liveMarket.hint ??
+    marketStatus.hint ??
+    (needsBacktestFallback ? backtest.hint : null)
   const isChartLoading =
     (liveMarket.snapshot === null &&
       (liveMarket.connectionState === 'connecting' || marketStatus.isLoading)) ||
     (needsBacktestFallback && backtest.isLoading)
+  const chartHasFallbackData = overlayPoints.length > 0
+  const chartError = chartHasFallbackData ? null : combinedError
+  const chartHint =
+    chartHasFallbackData && combinedError
+      ? 'Live stream unavailable right now. Showing the saved horizon overlay instead.'
+      : combinedHint
 
   return (
     <div className="space-y-8">
@@ -458,7 +526,7 @@ const LiveTestingContent = ({
         <MetricCard
           label="Actual Price"
           value={formatCurrency(predictionMetrics.actual)}
-          detail={`Session points shown: ${chartHistory.length}`}
+          detail={`Points shown: ${overlayPoints.length}`}
           hint="The latest real market price received by the page, plus how many live samples are currently stored in the chart."
         />
         <MetricCard
@@ -505,8 +573,8 @@ const LiveTestingContent = ({
         points={overlayPoints}
         latestPoint={overlayLatestPoint}
         loading={isChartLoading}
-        error={combinedError}
-        hint={combinedHint}
+        error={chartError}
+        hint={chartHint}
         onRetry={() => {
           marketStatus.retry()
           liveMarket.retry()
@@ -517,6 +585,21 @@ const LiveTestingContent = ({
       />
 
       <LivePredictionsTable points={liveMarket.history} />
+
+      <FeatureAblationReportPanel
+        stockDisplayName={stock.display_name}
+        mode={ablationMode}
+        report={featureAblation.data}
+        error={featureAblation.error}
+        hint={featureAblation.hint}
+        isLoading={featureAblation.isLoading}
+        isRefreshing={featureAblation.isRefreshing}
+        isRunning={featureAblation.isRunning}
+        onRetry={featureAblation.retry}
+        onRun={() => {
+          void featureAblation.run(30)
+        }}
+      />
     </div>
   )
 }

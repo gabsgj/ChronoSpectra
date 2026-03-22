@@ -1,15 +1,21 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
+import os
+from tempfile import NamedTemporaryFile
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse
 
+from data.cache.data_cache import DataCache
 from routes.api_models import (
     APIErrorResponse,
+    ColabArtifactImportResponse,
+    FeatureAblationImportResponse,
     FeatureAblationEntryResponse,
     FeatureAblationReportResponse,
     ModelMetricsSummary,
@@ -21,7 +27,15 @@ from routes.api_models import (
     TrainingStartResponse,
 )
 from routes.utils import load_json_file, raise_structured_http_error, require_stock
-from training.feature_ablation import run_feature_ablation
+from training.colab_artifact_importer import import_colab_artifact_bundle
+from training.feature_ablation import build_feature_ablation_entries, run_feature_ablation
+from training.feature_ablation_importer import import_feature_ablation_bundle
+from training.feature_ablation_store import (
+    FEATURE_ABLATION_REPORT_DIR,
+    load_feature_ablation_payload,
+    persist_feature_ablation_payload,
+    resolve_feature_ablation_report_path,
+)
 from training.feature_channels import resolve_feature_channels
 from training.runtime_state import (
     TrainingAlreadyRunningError,
@@ -37,6 +51,7 @@ REPORT_STORE_DIR = Path(__file__).resolve().parents[1] / "models" / "model_store
 TRAINING_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
     422: {"model": APIErrorResponse},
     404: {"model": APIErrorResponse},
+    403: {"model": APIErrorResponse},
     409: {"model": APIErrorResponse},
     503: {"model": APIErrorResponse},
 }
@@ -70,6 +85,147 @@ def start_training(
         planned_modes=list(runtime_state.get("planned_modes", [])),
         started_at=str(runtime_state["started_at"]),
     )
+
+
+@router.post(
+    "/import-colab-artifacts",
+    response_model=ColabArtifactImportResponse,
+    responses=TRAINING_ERROR_RESPONSES,
+)
+async def import_colab_artifacts(request: Request) -> ColabArtifactImportResponse:
+    app_env = _require_development_environment(request)
+    upload_filename = request.headers.get("x-upload-filename", "colab_artifacts.zip").strip()
+    if not upload_filename.lower().endswith(".zip"):
+        raise_structured_http_error(
+            422,
+            "invalid_artifact_bundle",
+            "Uploaded bundle must be a .zip file exported from Colab/Drive.",
+        )
+
+    temp_bundle_path: Path | None = None
+    total_bytes = 0
+    try:
+        with NamedTemporaryFile(
+            prefix="chronospectra-colab-upload-",
+            suffix=".zip",
+            delete=False,
+        ) as temp_file:
+            temp_bundle_path = Path(temp_file.name)
+            async for chunk in request.stream():
+                if not chunk:
+                    continue
+                total_bytes += len(chunk)
+                temp_file.write(chunk)
+
+        if temp_bundle_path is None or total_bytes == 0:
+            raise_structured_http_error(
+                422,
+                "invalid_artifact_bundle",
+                "Uploaded bundle is empty.",
+            )
+
+        try:
+            import_result = import_colab_artifact_bundle(
+                temp_bundle_path,
+                request.app.state.config,
+            )
+        except ValueError as exc:
+            raise_structured_http_error(
+                422,
+                "invalid_artifact_bundle",
+                "Artifact import failed.",
+                hint=str(exc),
+            )
+
+        cache_cleared = _clear_runtime_cache(request)
+        return ColabArtifactImportResponse(
+            status="completed",
+            imported_at=import_result.imported_at,
+            app_env=app_env,
+            cache_cleared=cache_cleared,
+            imported_modes=import_result.imported_modes,
+            imported_stock_ids=import_result.imported_stock_ids,
+            imported_reports=import_result.imported_reports,
+            imported_checkpoints=import_result.imported_checkpoints,
+            imported_scalers=import_result.imported_scalers,
+            aggregate_report_path=import_result.aggregate_report_path,
+            skipped_entries=import_result.skipped_entries,
+        )
+    finally:
+        if temp_bundle_path is not None:
+            with contextlib.suppress(OSError):
+                os.unlink(temp_bundle_path)
+
+
+@router.post(
+    "/import-feature-ablation-artifacts",
+    response_model=FeatureAblationImportResponse,
+    responses=TRAINING_ERROR_RESPONSES,
+)
+async def import_feature_ablation_artifacts(request: Request) -> FeatureAblationImportResponse:
+    app_env = _require_development_environment(request)
+    upload_filename = request.headers.get(
+        "x-upload-filename",
+        "feature_ablation_artifacts.zip",
+    ).strip()
+    if not upload_filename.lower().endswith(".zip"):
+        raise_structured_http_error(
+            422,
+            "invalid_feature_ablation_bundle",
+            "Uploaded feature ablation bundle must be a .zip file exported from Colab/Drive.",
+        )
+
+    temp_bundle_path: Path | None = None
+    total_bytes = 0
+    try:
+        with NamedTemporaryFile(
+            prefix="chronospectra-feature-ablation-upload-",
+            suffix=".zip",
+            delete=False,
+        ) as temp_file:
+            temp_bundle_path = Path(temp_file.name)
+            async for chunk in request.stream():
+                if not chunk:
+                    continue
+                total_bytes += len(chunk)
+                temp_file.write(chunk)
+
+        if temp_bundle_path is None or total_bytes == 0:
+            raise_structured_http_error(
+                422,
+                "invalid_feature_ablation_bundle",
+                "Uploaded bundle is empty.",
+            )
+
+        try:
+            import_result = import_feature_ablation_bundle(
+                temp_bundle_path,
+                request.app.state.config,
+            )
+        except ValueError as exc:
+            raise_structured_http_error(
+                422,
+                "invalid_feature_ablation_bundle",
+                "Feature ablation import failed.",
+                hint=str(exc),
+            )
+
+        cache_cleared = _clear_runtime_cache(request)
+        return FeatureAblationImportResponse(
+            status="completed",
+            imported_at=import_result.imported_at,
+            app_env=app_env,
+            cache_cleared=cache_cleared,
+            imported_stock_ids=import_result.imported_stock_ids,
+            imported_modes=import_result.imported_modes,
+            imported_reports=import_result.imported_reports,
+            aggregate_report_path=import_result.aggregate_report_path,
+            skipped_entries=import_result.skipped_entries,
+        )
+    finally:
+        if temp_bundle_path is not None:
+            with contextlib.suppress(OSError):
+                os.unlink(temp_bundle_path)
 
 
 @router.get("/progress")
@@ -185,6 +341,35 @@ def training_report_detail(
     )
 
 
+@router.get(
+    "/feature-ablation/{stock_id}",
+    response_model=FeatureAblationReportResponse,
+    responses={404: {"model": APIErrorResponse}, 422: {"model": APIErrorResponse}, 503: {"model": APIErrorResponse}},
+)
+def get_feature_ablation_report(
+    stock_id: str,
+    request: Request,
+    mode: str | None = Query(None),
+) -> FeatureAblationReportResponse:
+    stock = require_stock(request, stock_id)
+    resolved_mode = _resolve_feature_ablation_mode(mode)
+    payload = load_feature_ablation_payload(stock["id"], resolved_mode)
+    if not payload:
+        report_path = resolve_feature_ablation_report_path(stock["id"], resolved_mode)
+        raise_structured_http_error(
+            503,
+            "feature_ablation_not_ready",
+            f"No saved feature ablation report is available yet for '{stock['id']}' in '{resolved_mode}' mode.",
+            hint=(
+                "Import a feature ablation bundle or run ablation from the UI. "
+                "A fresh run retrains baseline and channel-drop variants, so it can take several minutes."
+            ),
+            artifact_path=str(report_path),
+        )
+    _validate_feature_ablation_payload(payload, request.app.state.config)
+    return _build_feature_ablation_response(payload)
+
+
 @router.post(
     "/feature-ablation/{stock_id}",
     response_model=FeatureAblationReportResponse,
@@ -197,7 +382,7 @@ def feature_ablation_report(
     epochs: int | None = Query(None, ge=1, le=500),
 ) -> FeatureAblationReportResponse:
     stock = require_stock(request, stock_id)
-    resolved_mode = (mode or "per_stock").lower()
+    resolved_mode = _resolve_feature_ablation_mode(mode)
     try:
         ablation_results = run_feature_ablation(
             app_config=request.app.state.config,
@@ -215,48 +400,23 @@ def feature_ablation_report(
             hint=str(exc),
         )
 
-    baseline = next((result for result in ablation_results if result.removed_channel is None), None)
-    if baseline is None:
+    try:
+        entries = build_feature_ablation_entries(ablation_results)
+    except ValueError as exc:
         raise_structured_http_error(
             503,
             "ablation_failed",
-            "Baseline ablation result is missing.",
+            str(exc),
         )
 
-    entries: list[FeatureAblationEntryResponse] = []
-    baseline_metrics = baseline.metrics
-    for result in ablation_results:
-        metrics = result.metrics
-        is_baseline = result.removed_channel is None
-        entries.append(
-            FeatureAblationEntryResponse(
-                label=result.label,
-                channels=result.channels,
-                removed_channel=result.removed_channel,
-                mse=metrics.mse,
-                rmse=metrics.rmse,
-                mae=metrics.mae,
-                mape=metrics.mape,
-                directional_accuracy=metrics.directional_accuracy,
-                delta_mse=None if is_baseline else metrics.mse - baseline_metrics.mse,
-                delta_rmse=None if is_baseline else metrics.rmse - baseline_metrics.rmse,
-                delta_mae=None if is_baseline else metrics.mae - baseline_metrics.mae,
-                delta_mape=None if is_baseline else metrics.mape - baseline_metrics.mape,
-                delta_directional_accuracy=(
-                    None
-                    if is_baseline
-                    else metrics.directional_accuracy - baseline_metrics.directional_accuracy
-                ),
-            )
-        )
-
-    return FeatureAblationReportResponse(
+    payload = persist_feature_ablation_payload(
         stock_id=stock["id"],
         mode=resolved_mode,
         configured_channels=resolve_feature_channels(request.app.state.config),
         transform_name=str(request.app.state.config["signal_processing"]["default_transform"]),
         entries=entries,
     )
+    return _build_feature_ablation_response(payload)
 
 
 def load_training_report_entries(stock_id: str | None = None) -> list[TrainingReportEntryResponse]:
@@ -280,6 +440,63 @@ def load_training_report_entries(stock_id: str | None = None) -> list[TrainingRe
             )
         )
     return entries
+
+
+def _resolve_feature_ablation_mode(mode: str | None) -> str:
+    resolved_mode = (mode or "per_stock").strip().lower()
+    supported_modes = {"per_stock", "unified", "unified_with_embeddings"}
+    if resolved_mode not in supported_modes:
+        raise_structured_http_error(
+            422,
+            "invalid_ablation_request",
+            f"Unsupported ablation mode '{mode}'.",
+            hint=f"Use one of: {', '.join(sorted(supported_modes))}.",
+        )
+    return resolved_mode
+
+
+def _validate_feature_ablation_payload(
+    payload: dict[str, Any],
+    app_config: dict[str, Any],
+) -> None:
+    configured_channels = resolve_feature_channels(app_config)
+    payload_channels = _safe_str_list(payload.get("configured_channels"))
+    if payload_channels != configured_channels:
+        raise_structured_http_error(
+            503,
+            "incompatible_feature_ablation_report",
+            "Saved feature ablation report channels do not match the current app config.",
+            hint=(
+                f"Saved channels: {payload_channels}. "
+                f"Current config channels: {configured_channels}. Re-run or re-import the report."
+            ),
+            artifact_path=str(payload.get("report_path") or FEATURE_ABLATION_REPORT_DIR),
+        )
+
+
+def _build_feature_ablation_response(
+    payload: dict[str, Any],
+) -> FeatureAblationReportResponse:
+    entries_payload = payload.get("entries", [])
+    entries: list[FeatureAblationEntryResponse] = []
+    if isinstance(entries_payload, list):
+        for item in entries_payload:
+            if not isinstance(item, dict):
+                continue
+            try:
+                entries.append(FeatureAblationEntryResponse(**item))
+            except Exception:
+                continue
+
+    return FeatureAblationReportResponse(
+        stock_id=str(payload.get("stock_id", "")),
+        mode=str(payload.get("mode", "per_stock")),
+        generated_at=_as_str(payload.get("generated_at")),
+        report_path=_as_str(payload.get("report_path")),
+        configured_channels=_safe_str_list(payload.get("configured_channels")),
+        transform_name=str(payload.get("transform_name", "stft")),
+        entries=entries,
+    )
 
 
 def _build_metrics_summary(payload: dict[str, Any]) -> ModelMetricsSummary:
@@ -328,3 +545,22 @@ def _safe_str_list(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []
     return [str(item) for item in value if isinstance(item, str)]
+
+
+def _require_development_environment(request: Request) -> str:
+    app_env = str(getattr(request.app.state, "environment", {}).get("APP_ENV", "")).strip().lower()
+    if app_env != "development":
+        raise_structured_http_error(
+            403,
+            "development_only",
+            "Colab artifact import is available only when APP_ENV is development.",
+        )
+    return app_env
+
+
+def _clear_runtime_cache(request: Request) -> bool:
+    cache = getattr(request.app.state, "data_cache", None)
+    if isinstance(cache, DataCache):
+        cache.clear()
+        return True
+    return False

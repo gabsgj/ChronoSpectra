@@ -1,10 +1,11 @@
-import { startTransition, useEffect, useEffectEvent, useMemo, useState } from 'react'
+import { startTransition, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { apiClient } from '../api/client'
 import { DriftChart } from '../components/charts/DriftChart'
 import { LossCurveChart } from '../components/charts/LossCurveChart'
 import { LiveStockSelector } from '../components/live/LiveStockSelector'
+import { FeatureAblationReportPanel } from '../components/training/FeatureAblationReportPanel'
 import { LocalTrainingQueuePanel } from '../components/training/LocalTrainingQueuePanel'
 import { RecentTrainingResultsPanel } from '../components/training/RecentTrainingResultsPanel'
 import { RetrainingTimeline } from '../components/training/RetrainingTimeline'
@@ -18,13 +19,15 @@ import {
   getStockById,
 } from '../config/stocksConfig'
 import { useSharedTrainingReports } from '../contexts/SharedTrainingReportsContext'
+import { useFeatureAblationReport } from '../hooks/useFeatureAblationReport'
 import { formatApiError } from '../hooks/formatApiError'
 import { useRetrainingLogs } from '../hooks/useRetrainingLogs'
 import { useRetrainingProgress } from '../hooks/useRetrainingProgress'
 import { useRetrainingStatus } from '../hooks/useRetrainingStatus'
 import { useTrainingReportDetail } from '../hooks/useTrainingReportDetail'
 import type {
-  FeatureAblationReportResponse,
+  ColabArtifactImportResponse,
+  FeatureAblationImportResponse,
   ModelMode,
   ThemeMode,
   TrainingEpochMetrics,
@@ -60,6 +63,7 @@ const resolveNotebookModes = (mode: ModelMode) => {
 }
 
 const TRAINING_RUNTIME_POLL_MS = 15_000
+const IS_DEVELOPMENT_APP = __APP_ENV__ === 'development'
 
 export default function Training() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -104,13 +108,22 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
   const retrainingProgress = useRetrainingProgress(stock.id)
   const [confirmingRetrain, setConfirmingRetrain] = useState(false)
   const [downloadingMode, setDownloadingMode] = useState<ModelMode | null>(null)
+  const [downloadingAblationNotebook, setDownloadingAblationNotebook] = useState(false)
   const [downloadMessage, setDownloadMessage] = useState<string | null>(null)
   const [downloadError, setDownloadError] = useState<string | null>(null)
   const [handledRunId, setHandledRunId] = useState<string | null>(null)
-  const [ablationReport, setAblationReport] = useState<FeatureAblationReportResponse | null>(null)
-  const [ablationLoading, setAblationLoading] = useState(false)
-  const [ablationError, setAblationError] = useState<string | null>(null)
-  const [ablationHint, setAblationHint] = useState<string | null>(null)
+  const [artifactBundle, setArtifactBundle] = useState<File | null>(null)
+  const [artifactImportLoading, setArtifactImportLoading] = useState(false)
+  const [artifactImportError, setArtifactImportError] = useState<string | null>(null)
+  const [artifactImportHint, setArtifactImportHint] = useState<string | null>(null)
+  const [artifactImportResult, setArtifactImportResult] = useState<ColabArtifactImportResponse | null>(null)
+  const [featureAblationBundle, setFeatureAblationBundle] = useState<File | null>(null)
+  const [featureAblationImportLoading, setFeatureAblationImportLoading] = useState(false)
+  const [featureAblationImportError, setFeatureAblationImportError] = useState<string | null>(null)
+  const [featureAblationImportHint, setFeatureAblationImportHint] = useState<string | null>(null)
+  const [featureAblationImportResult, setFeatureAblationImportResult] = useState<FeatureAblationImportResponse | null>(null)
+  const artifactInputRef = useRef<HTMLInputElement | null>(null)
+  const featureAblationInputRef = useRef<HTMLInputElement | null>(null)
 
   const retrainingEntries = useMemo(() => {
     return [...(retrainingLogs.data?.retrain_history ?? [])]
@@ -136,6 +149,7 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
   const ablationMode: VariantModelMode = appConfig.model_mode === 'both'
     ? 'per_stock'
     : appConfig.model_mode
+  const featureAblation = useFeatureAblationReport(stock.id, ablationMode)
 
   const refreshSelectedReport = useEffectEvent(() => {
     reportDetail.retry()
@@ -199,25 +213,99 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
     }
   }
 
-  const runFeatureAblation = async () => {
-    setAblationLoading(true)
-    setAblationError(null)
-    setAblationHint(null)
+  const handleFeatureAblationNotebookDownload = async () => {
+    setDownloadingAblationNotebook(true)
+    setDownloadError(null)
+    setDownloadMessage(null)
     try {
-      const report = await apiClient.runFeatureAblation(stock.id, {
-        mode: ablationMode,
-        epochs: 30,
-      })
-      setAblationReport(report)
+      const response = await apiClient.downloadFeatureAblationNotebook(ablationMode)
+      const objectUrl = window.URL.createObjectURL(response.blob)
+      const anchor = document.createElement('a')
+      anchor.href = objectUrl
+      anchor.download = response.filename ?? `chronospectra_${ablationMode}_feature_ablation.ipynb`
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      window.URL.revokeObjectURL(objectUrl)
+      setDownloadMessage(
+        `${response.filename ?? `chronospectra_${ablationMode}_feature_ablation.ipynb`} downloaded.`,
+      )
     } catch (error) {
       const formattedError = formatApiError(
         error,
-        'Unable to run feature ablation.',
+        'Unable to download the feature ablation notebook.',
       )
-      setAblationError(formattedError.error)
-      setAblationHint(formattedError.hint)
+      setDownloadError(formattedError.error)
     } finally {
-      setAblationLoading(false)
+      setDownloadingAblationNotebook(false)
+    }
+  }
+
+  const importColabArtifacts = async () => {
+    if (!artifactBundle) {
+      setArtifactImportError('Choose a Colab artifact zip before starting the import.')
+      setArtifactImportHint(null)
+      return
+    }
+    setArtifactImportLoading(true)
+    setArtifactImportError(null)
+    setArtifactImportHint(null)
+    try {
+      const result = await apiClient.importColabArtifactBundle(artifactBundle)
+      setArtifactImportResult(result)
+      setArtifactBundle(null)
+      if (artifactInputRef.current) {
+        artifactInputRef.current.value = ''
+      }
+      trainingReports.retry()
+      reportDetail.retry()
+      retrainingLogs.retry()
+      retrainingStatus.retry()
+      featureAblation.retry()
+      setDownloadMessage('Colab artifacts imported and runtime cache cleared.')
+      setDownloadError(null)
+    } catch (error) {
+      const formattedError = formatApiError(
+        error,
+        'Unable to import the Colab artifact bundle.',
+      )
+      setArtifactImportError(formattedError.error)
+      setArtifactImportHint(formattedError.hint)
+    } finally {
+      setArtifactImportLoading(false)
+    }
+  }
+
+  const importFeatureAblationArtifacts = async () => {
+    if (!featureAblationBundle) {
+      setFeatureAblationImportError(
+        'Choose a feature ablation zip before starting the import.',
+      )
+      setFeatureAblationImportHint(null)
+      return
+    }
+    setFeatureAblationImportLoading(true)
+    setFeatureAblationImportError(null)
+    setFeatureAblationImportHint(null)
+    try {
+      const result = await apiClient.importFeatureAblationBundle(featureAblationBundle)
+      setFeatureAblationImportResult(result)
+      setFeatureAblationBundle(null)
+      if (featureAblationInputRef.current) {
+        featureAblationInputRef.current.value = ''
+      }
+      featureAblation.retry()
+      setDownloadMessage('Feature ablation reports imported and ready to reuse.')
+      setDownloadError(null)
+    } catch (error) {
+      const formattedError = formatApiError(
+        error,
+        'Unable to import the feature ablation bundle.',
+      )
+      setFeatureAblationImportError(formattedError.error)
+      setFeatureAblationImportHint(formattedError.hint)
+    } finally {
+      setFeatureAblationImportLoading(false)
     }
   }
 
@@ -348,7 +436,7 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
           <h3 className="mt-3 text-2xl text-ink">Download Colab-ready notebooks</h3>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-muted">
             Generate Colab notebooks for the currently configured model modes
-            and keep the artifact flow aligned with the training pipeline.
+            and keep the artifact flow aligned with the training and ablation pipelines.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
@@ -364,8 +452,19 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
                 {downloadingMode === mode
                   ? `Downloading ${mode.replaceAll('_', ' ')}`
                   : `Download ${mode.replaceAll('_', ' ')}`}
-              </button>
-            ))}
+                </button>
+              ))}
+            <button
+              type="button"
+              onClick={() => void handleFeatureAblationNotebookDownload()}
+              disabled={downloadingMode !== null || downloadingAblationNotebook}
+              aria-label={`Download the ${ablationMode.replaceAll('_', ' ')} feature ablation notebook for all active stocks.`}
+              className="rounded-full border border-amber/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber transition hover:bg-amber/10 disabled:cursor-wait disabled:opacity-60"
+            >
+              {downloadingAblationNotebook
+                ? `Downloading ${ablationMode.replaceAll('_', ' ')} ablation`
+                : `Download ${ablationMode.replaceAll('_', ' ')} ablation`}
+            </button>
           </div>
 
           {downloadMessage ? (
@@ -441,77 +540,186 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
         </article>
       </section>
 
-      <section className="card-surface space-y-5 p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="eyebrow">Feature Contribution Analysis</p>
-            <h3 className="mt-2 text-2xl text-ink">Channel ablation report</h3>
-            <p className="mt-2 max-w-3xl text-sm leading-7 text-muted">
-              Runs baseline training and then removes one input channel at a time to estimate
-              each channel&apos;s effect on evaluation metrics.
+      {IS_DEVELOPMENT_APP ? (
+        <section className="card-surface space-y-5 p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="eyebrow">Development Artifact Import</p>
+              <h3 className="mt-2 text-2xl text-ink">Upload Colab result bundle</h3>
+              <p className="mt-2 max-w-3xl text-sm leading-7 text-muted">
+                Upload the zip exported from Drive after a Colab run. The backend imports
+                checkpoints, scalers, and reports into the expected folders, then clears the
+                in-memory runtime cache without leaving temp extraction files behind.
+              </p>
+            </div>
+            <span className="inline-flex rounded-full border border-teal/35 bg-teal/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-teal">
+              APP_ENV {__APP_ENV__}
+            </span>
+          </div>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <article className="rounded-[22px] border border-stroke/70 bg-card/65 p-5">
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-ink">Training artifact bundle</p>
+                <label className="block text-sm font-semibold text-ink" htmlFor="colab-artifact-bundle">
+                  Colab zip bundle
+                </label>
+                <input
+                  id="colab-artifact-bundle"
+                  ref={artifactInputRef}
+                  type="file"
+                  accept=".zip,application/zip"
+                  onChange={(event) => {
+                    setArtifactImportError(null)
+                    setArtifactImportHint(null)
+                    setArtifactImportResult(null)
+                    setArtifactBundle(event.target.files?.[0] ?? null)
+                  }}
+                  className="block w-full rounded-[18px] border border-stroke/70 bg-card/70 px-4 py-3 text-sm text-muted file:mr-4 file:rounded-full file:border-0 file:bg-teal/10 file:px-4 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.18em] file:text-teal"
+                />
+                <p className="text-sm text-muted">
+                  Selected bundle: {artifactBundle?.name ?? 'None'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void importColabArtifacts()}
+                  disabled={artifactImportLoading}
+                  className="rounded-full border border-teal/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-teal transition hover:bg-teal/10 disabled:cursor-wait disabled:opacity-60"
+                  aria-label="Import Colab artifacts from the selected zip bundle."
+                >
+                  {artifactImportLoading ? 'Importing bundle...' : 'Import zip bundle'}
+                </button>
+              </div>
+            </article>
+
+            <article className="rounded-[22px] border border-stroke/70 bg-card/65 p-5">
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-ink">Feature ablation report bundle</p>
+                <label className="block text-sm font-semibold text-ink" htmlFor="feature-ablation-bundle">
+                  Feature ablation zip
+                </label>
+                <input
+                  id="feature-ablation-bundle"
+                  ref={featureAblationInputRef}
+                  type="file"
+                  accept=".zip,application/zip"
+                  onChange={(event) => {
+                    setFeatureAblationImportError(null)
+                    setFeatureAblationImportHint(null)
+                    setFeatureAblationImportResult(null)
+                    setFeatureAblationBundle(event.target.files?.[0] ?? null)
+                  }}
+                  className="block w-full rounded-[18px] border border-stroke/70 bg-card/70 px-4 py-3 text-sm text-muted file:mr-4 file:rounded-full file:border-0 file:bg-amber/10 file:px-4 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.18em] file:text-amber"
+                />
+                <p className="text-sm text-muted">
+                  Selected bundle: {featureAblationBundle?.name ?? 'None'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void importFeatureAblationArtifacts()}
+                  disabled={featureAblationImportLoading}
+                  className="rounded-full border border-amber/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber transition hover:bg-amber/10 disabled:cursor-wait disabled:opacity-60"
+                  aria-label="Import saved feature ablation reports from the selected zip bundle."
+                >
+                  {featureAblationImportLoading ? 'Importing ablation...' : 'Import ablation zip'}
+                </button>
+              </div>
+            </article>
+          </div>
+
+          {artifactImportError ? (
+            <p className="rounded-[18px] border border-amber/30 bg-amber/10 px-4 py-3 text-sm leading-6 text-muted">
+              {artifactImportError}
+              {artifactImportHint ? ` ${artifactImportHint}` : ''}
             </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void runFeatureAblation()}
-            disabled={ablationLoading}
-            className="rounded-full border border-teal/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-teal transition hover:bg-teal/10 disabled:cursor-wait disabled:opacity-60"
-            aria-label={`Run feature-channel ablation for ${stock.display_name}.`}
-          >
-            {ablationLoading ? 'Running ablation...' : 'Run ablation'}
-          </button>
-        </div>
+          ) : null}
 
-        <p className="text-sm text-muted">
-          Mode: {ablationMode.replaceAll('_', ' ')} | Configured channels:{' '}
-          {(ablationReport?.configured_channels ?? ['price']).join(', ')}
-        </p>
+          {featureAblationImportError ? (
+            <p className="rounded-[18px] border border-amber/30 bg-amber/10 px-4 py-3 text-sm leading-6 text-muted">
+              {featureAblationImportError}
+              {featureAblationImportHint ? ` ${featureAblationImportHint}` : ''}
+            </p>
+          ) : null}
 
-        {ablationError ? (
-          <p className="rounded-[18px] border border-amber/30 bg-amber/10 px-4 py-3 text-sm leading-6 text-muted">
-            {ablationError}
-            {ablationHint ? ` ${ablationHint}` : ''}
-          </p>
-        ) : null}
+          {artifactImportResult ? (
+            <div className="grid gap-4 rounded-[22px] border border-stroke/70 bg-card/65 p-5 md:grid-cols-2">
+              <div className="space-y-2 text-sm text-muted">
+                <p>Imported at: {formatTimestamp(artifactImportResult.imported_at)}</p>
+                <p>Cache cleared: {artifactImportResult.cache_cleared ? 'Yes' : 'No'}</p>
+                <p>Modes: {artifactImportResult.imported_modes.join(', ') || 'None'}</p>
+                <p>Stocks: {artifactImportResult.imported_stock_ids.join(', ') || 'None'}</p>
+              </div>
+              <div className="space-y-2 text-sm text-muted">
+                <p>Reports: {artifactImportResult.imported_reports.length}</p>
+                <p>Checkpoints: {artifactImportResult.imported_checkpoints.length}</p>
+                <p>Scalers: {artifactImportResult.imported_scalers.length}</p>
+                <p>
+                  Aggregate report: {artifactImportResult.aggregate_report_path ?? 'Not copied'}
+                </p>
+              </div>
+              {artifactImportResult.skipped_entries.length > 0 ? (
+                <div className="md:col-span-2">
+                  <p className="text-sm font-semibold text-ink">Skipped entries</p>
+                  <ul className="mt-2 space-y-2 text-sm text-muted">
+                    {artifactImportResult.skipped_entries.map((entry) => (
+                      <li key={entry}>{entry}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
-        {ablationReport ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-separate border-spacing-y-2 text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase tracking-[0.18em] text-muted">
-                  <th className="px-3 py-2">Variant</th>
-                  <th className="px-3 py-2">Channels</th>
-                  <th className="px-3 py-2">MSE</th>
-                  <th className="px-3 py-2">Delta MSE</th>
-                  <th className="px-3 py-2">Dir Acc</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ablationReport.entries.map((entry) => (
-                  <tr key={entry.label} className="rounded-[16px] border border-stroke/60 bg-card/75">
-                    <td className="px-3 py-2 font-semibold text-ink">
-                      {entry.removed_channel ? `Minus ${entry.removed_channel}` : 'Baseline'}
-                    </td>
-                    <td className="px-3 py-2 text-muted">{entry.channels.join(', ')}</td>
-                    <td className="px-3 py-2 text-muted">{entry.mse.toFixed(4)}</td>
-                    <td className="px-3 py-2 text-muted">
-                      {entry.delta_mse === null
-                        ? '--'
-                        : `${entry.delta_mse > 0 ? '+' : ''}${entry.delta_mse.toFixed(4)}`}
-                    </td>
-                    <td className="px-3 py-2 text-muted">{entry.directional_accuracy.toFixed(2)}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="text-sm text-muted">
-            Run ablation to compare baseline vs channel-drop variants (price, index, usd_inr,
-            revenue, profit).
-          </p>
-        )}
-      </section>
+          {featureAblationImportResult ? (
+            <div className="grid gap-4 rounded-[22px] border border-stroke/70 bg-card/65 p-5 md:grid-cols-2">
+              <div className="space-y-2 text-sm text-muted">
+                <p>Imported at: {formatTimestamp(featureAblationImportResult.imported_at)}</p>
+                <p>
+                  Cache cleared: {featureAblationImportResult.cache_cleared ? 'Yes' : 'No'}
+                </p>
+                <p>
+                  Modes: {featureAblationImportResult.imported_modes.join(', ') || 'None'}
+                </p>
+                <p>
+                  Stocks: {featureAblationImportResult.imported_stock_ids.join(', ') || 'None'}
+                </p>
+              </div>
+              <div className="space-y-2 text-sm text-muted">
+                <p>Reports: {featureAblationImportResult.imported_reports.length}</p>
+                <p>
+                  Aggregate report:{' '}
+                  {featureAblationImportResult.aggregate_report_path ?? 'Not copied'}
+                </p>
+              </div>
+              {featureAblationImportResult.skipped_entries.length > 0 ? (
+                <div className="md:col-span-2">
+                  <p className="text-sm font-semibold text-ink">Skipped entries</p>
+                  <ul className="mt-2 space-y-2 text-sm text-muted">
+                    {featureAblationImportResult.skipped_entries.map((entry) => (
+                      <li key={entry}>{entry}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      <FeatureAblationReportPanel
+        stockDisplayName={stock.display_name}
+        mode={ablationMode}
+        report={featureAblation.data}
+        error={featureAblation.error}
+        hint={featureAblation.hint}
+        isLoading={featureAblation.isLoading}
+        isRefreshing={featureAblation.isRefreshing}
+        isRunning={featureAblation.isRunning}
+        onRetry={featureAblation.retry}
+        onRun={() => {
+          void featureAblation.run(30)
+        }}
+      />
 
       <LossCurveChart
         history={reportDetail.data?.history ?? []}

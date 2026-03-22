@@ -1,5 +1,7 @@
 import type {
   ApiErrorResponse,
+  ColabArtifactImportResponse,
+  FeatureAblationImportResponse,
   FFTResponse,
   MarketDataResponse,
   MarketStatusResponse,
@@ -7,6 +9,7 @@ import type {
   ModelBacktestResponse,
   ModelCompareResponse,
   ModelMode,
+  PredictionResponse,
   RetrainingLogCollectionResponse,
   RetrainingProgressEvent,
   RetrainingProgressSnapshot,
@@ -120,6 +123,30 @@ const requestBlob = async (
   }
 }
 
+const requestUploadJson = async <T>(
+  path: string,
+  body: BodyInit,
+  headers?: HeadersInit,
+): Promise<T> => {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    body,
+    headers,
+  })
+  if (!response.ok) {
+    const detail = await parseErrorResponse(response)
+    throw new ApiClientError(
+      detail?.detail || `Request failed with status ${response.status}.`,
+      {
+        status: response.status,
+        errorCode: detail?.error,
+        hint: detail?.hint,
+      },
+    )
+  }
+  return (await response.json()) as T
+}
+
 const buildSearchParams = (params: Record<string, string | number | undefined>) => {
   const searchParams = new URLSearchParams()
   Object.entries(params).forEach(([key, value]) => {
@@ -138,6 +165,22 @@ export const apiClient = {
     requestJson<MarketStatusResponse>(`/live/market-status/${exchange}`, { signal }),
   getModelComparison: (stockId: string, signal?: AbortSignal) =>
     requestJson<ModelCompareResponse>(`/model/compare/${stockId}`, { signal }),
+  getPrediction: (
+    stockId: string,
+    options?: {
+      mode?: VariantModelMode
+      signal?: AbortSignal
+    },
+  ) => {
+    const query = buildSearchParams({
+      mode: options?.mode,
+    })
+    const suffix = query ? `?${query}` : ''
+    return requestJson<PredictionResponse>(`/model/predict/${stockId}${suffix}`, {
+      method: 'POST',
+      signal: options?.signal,
+    })
+  },
   getModelBacktest: (
     stockId: string,
     options?: { limit?: number; signal?: AbortSignal },
@@ -166,6 +209,40 @@ export const apiClient = {
       `/training/report-detail/${stockId}`,
       { signal },
     ),
+  importColabArtifactBundle: (file: File) =>
+    requestUploadJson<ColabArtifactImportResponse>(
+      '/training/import-colab-artifacts',
+      file,
+      {
+        'Content-Type': file.type || 'application/zip',
+        'X-Upload-Filename': file.name,
+      },
+    ),
+  importFeatureAblationBundle: (file: File) =>
+    requestUploadJson<FeatureAblationImportResponse>(
+      '/training/import-feature-ablation-artifacts',
+      file,
+      {
+        'Content-Type': file.type || 'application/zip',
+        'X-Upload-Filename': file.name,
+      },
+    ),
+  getFeatureAblationReport: (
+    stockId: string,
+    options?: {
+      mode?: VariantModelMode
+      signal?: AbortSignal
+    },
+  ) => {
+    const query = buildSearchParams({
+      mode: options?.mode,
+    })
+    const suffix = query ? `?${query}` : ''
+    return requestJson<FeatureAblationReportResponse>(
+      `/training/feature-ablation/${stockId}${suffix}`,
+      { signal: options?.signal },
+    )
+  },
   runFeatureAblation: (
     stockId: string,
     options?: {
@@ -211,6 +288,10 @@ export const apiClient = {
   downloadNotebook: async (mode: ModelMode) => {
     const query = buildSearchParams({ mode })
     return requestBlob(`/notebook/generate?${query}`)
+  },
+  downloadFeatureAblationNotebook: async (mode: VariantModelMode) => {
+    const query = buildSearchParams({ mode })
+    return requestBlob(`/notebook/generate-feature-ablation?${query}`)
   },
   getFrequencySpectrum: (stockId: string, signal?: AbortSignal) =>
     requestJson<FFTResponse>(`/signal/fft/${stockId}`, { signal }),

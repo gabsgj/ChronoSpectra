@@ -30,6 +30,42 @@ class AblationRunResult:
     metrics: EvaluationReport
 
 
+def build_feature_ablation_entries(
+    ablation_results: list[AblationRunResult],
+) -> list[dict[str, Any]]:
+    baseline = next((result for result in ablation_results if result.removed_channel is None), None)
+    if baseline is None:
+        raise ValueError("Baseline ablation result is missing.")
+
+    baseline_metrics = baseline.metrics
+    entries: list[dict[str, Any]] = []
+    for result in ablation_results:
+        metrics = result.metrics
+        is_baseline = result.removed_channel is None
+        entries.append(
+            {
+                "label": result.label,
+                "channels": list(result.channels),
+                "removed_channel": result.removed_channel,
+                "mse": metrics.mse,
+                "rmse": metrics.rmse,
+                "mae": metrics.mae,
+                "mape": metrics.mape,
+                "directional_accuracy": metrics.directional_accuracy,
+                "delta_mse": None if is_baseline else metrics.mse - baseline_metrics.mse,
+                "delta_rmse": None if is_baseline else metrics.rmse - baseline_metrics.rmse,
+                "delta_mae": None if is_baseline else metrics.mae - baseline_metrics.mae,
+                "delta_mape": None if is_baseline else metrics.mape - baseline_metrics.mape,
+                "delta_directional_accuracy": (
+                    None
+                    if is_baseline
+                    else metrics.directional_accuracy - baseline_metrics.directional_accuracy
+                ),
+            }
+        )
+    return entries
+
+
 def _build_model(mode: str, app_config: dict[str, Any], in_channels: int) -> BaseModel:
     if mode == "per_stock":
         return PerStockCNN(in_channels=in_channels)

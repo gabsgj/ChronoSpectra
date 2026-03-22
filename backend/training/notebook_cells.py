@@ -80,6 +80,7 @@ def _config_source(config_json: str, mode: str) -> str:
     return f"""
 import os
 import json
+import torch
 from pathlib import Path
 
 CONFIG = json.loads({config_literal})
@@ -106,6 +107,9 @@ if SMOKE_MODE:
 
 OUTPUT_DIR = Path("chronospectra_artifacts")
 OUTPUT_DIR.mkdir(exist_ok=True)
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+if DEVICE.type == "cuda":
+    torch.backends.cudnn.benchmark = True
 
 print("Notebook mode:", NOTEBOOK_MODE)
 print("Smoke mode:", SMOKE_MODE)
@@ -113,6 +117,7 @@ print("Configured app mode:", CONFIG["model_mode"])
 print("Active stocks:", [stock["id"] for stock in ACTIVE_STOCKS])
 print("Feature channels:", FEATURE_CHANNEL_NAMES)
 print("Input channels:", len(FEATURE_CHANNEL_NAMES))
+print("Training device:", DEVICE)
     """
 
 
@@ -472,6 +477,7 @@ def _training_loop_source() -> str:
     return """
     import math
     import pickle
+    import torch
     from torch.utils.data import DataLoader, Dataset
     from torch import nn
     from torch.optim import Adam
@@ -553,6 +559,28 @@ def _training_loop_source() -> str:
             )
         raise ValueError(f"Unsupported notebook mode: {mode}")
 
+    def data_loader_for(dataset: SpectrogramDataset, shuffle: bool) -> DataLoader:
+        return DataLoader(
+            dataset,
+            batch_size=int(CONFIG["training"]["batch_size"]),
+            shuffle=shuffle,
+            pin_memory=DEVICE.type == "cuda",
+        )
+
+    def prepare_batch(batch: dict) -> dict:
+        prepared_batch = {}
+        for key, value in batch.items():
+            if isinstance(value, torch.Tensor):
+                to_kwargs = {"device": DEVICE}
+                if value.is_floating_point():
+                    to_kwargs["dtype"] = torch.float32
+                if DEVICE.type == "cuda":
+                    to_kwargs["non_blocking"] = True
+                prepared_batch[key] = value.to(**to_kwargs)
+            else:
+                prepared_batch[key] = value
+        return prepared_batch
+
     def forward_model(model: BaseModel, mode: str, batch: dict) -> torch.Tensor:
         inputs = batch["inputs"]
         if mode == "unified_with_embeddings":
@@ -560,10 +588,11 @@ def _training_loop_source() -> str:
         return model(inputs)
 
     def train_model(model: BaseModel, datasets: dict, mode: str, checkpoint_path: Path) -> list[dict]:
+        model = model.to(DEVICE)
         optimizer = Adam(model.parameters(), lr=float(CONFIG["training"]["learning_rate"]))
         loss_function = nn.MSELoss()
-        train_loader = DataLoader(datasets["train"], batch_size=int(CONFIG["training"]["batch_size"]), shuffle=True)
-        val_loader = DataLoader(datasets["val"], batch_size=int(CONFIG["training"]["batch_size"]), shuffle=False)
+        train_loader = data_loader_for(datasets["train"], shuffle=True)
+        val_loader = data_loader_for(datasets["val"], shuffle=False)
         history = []
         best_val_loss = float("inf")
         for epoch in range(1, int(CONFIG["training"]["epochs"]) + 1):
@@ -571,6 +600,7 @@ def _training_loop_source() -> str:
             train_loss = 0.0
             train_batches = 0
             for batch in train_loader:
+                batch = prepare_batch(batch)
                 optimizer.zero_grad()
                 predictions = forward_model(model, mode, batch)
                 loss = loss_function(predictions, batch["target"])
@@ -583,6 +613,7 @@ def _training_loop_source() -> str:
             val_batches = 0
             with torch.no_grad():
                 for batch in val_loader:
+                    batch = prepare_batch(batch)
                     predictions = forward_model(model, mode, batch)
                     val_loss += float(loss_function(predictions, batch["target"]).item())
                     val_batches += 1
@@ -594,12 +625,16 @@ def _training_loop_source() -> str:
             history.append(epoch_metrics)
             if epoch_metrics["val_loss"] <= best_val_loss:
                 best_val_loss = epoch_metrics["val_loss"]
-                torch.save(model.state_dict(), checkpoint_path)
+                state_dict = {
+                    key: value.detach().cpu()
+                    for key, value in model.state_dict().items()
+                }
+                torch.save(state_dict, checkpoint_path)
         return history
 
     def load_trained_model(mode: str, num_stocks: int, checkpoint_path: Path) -> BaseModel:
-        model = create_model(mode, num_stocks=num_stocks)
-        state_dict = torch.load(checkpoint_path, map_location="cpu")
+        model = create_model(mode, num_stocks=num_stocks).to(DEVICE)
+        state_dict = torch.load(checkpoint_path, map_location=DEVICE)
         if isinstance(state_dict, dict) and "state_dict" in state_dict:
             state_dict = state_dict["state_dict"]
         if not isinstance(state_dict, dict):
@@ -609,7 +644,8 @@ def _training_loop_source() -> str:
         return model
 
     def evaluate_model(model: BaseModel, dataset: SpectrogramDataset, scalers: dict, mode: str) -> dict:
-        loader = DataLoader(dataset, batch_size=int(CONFIG["training"]["batch_size"]), shuffle=False)
+        model = model.to(DEVICE)
+        loader = data_loader_for(dataset, shuffle=False)
         prediction_chunks = []
         target_chunks = []
         reference_chunks = []
@@ -618,9 +654,14 @@ def _training_loop_source() -> str:
         model.eval()
         with torch.no_grad():
             for batch in loader:
-                prediction_chunks.append(forward_model(model, mode, batch).numpy().reshape(-1))
-                target_chunks.append(batch["target"].numpy().reshape(-1))
-                reference_chunks.append(batch["reference_raw"].numpy().reshape(-1))
+                batch = prepare_batch(batch)
+                prediction_chunks.append(
+                    forward_model(model, mode, batch).detach().cpu().numpy().reshape(-1)
+                )
+                target_chunks.append(batch["target"].detach().cpu().numpy().reshape(-1))
+                reference_chunks.append(
+                    batch["reference_raw"].detach().cpu().numpy().reshape(-1)
+                )
                 stock_ids.extend(batch["stock_id"])
                 timestamps.extend(batch["label_timestamp"])
         predictions_normalized = np.concatenate(prediction_chunks)

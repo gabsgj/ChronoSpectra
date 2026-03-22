@@ -318,6 +318,24 @@ export interface ModelCompareResponse {
   best_available_mode: VariantModelMode | null
 }
 
+export interface PredictionResponse {
+  stock_id: string
+  ticker: string
+  configured_mode: ModelMode
+  resolved_mode: VariantModelMode
+  checkpoint_path: string
+  scaler_path: string
+  transform_name: string
+  prediction_horizon_days: number
+  as_of_timestamp: string
+  prediction_target_at: string
+  latest_close: number
+  predicted_price: number
+  predicted_price_normalized: number
+  signal_window_length: number
+  feature_channels: string[]
+}
+
 export interface BacktestPoint {
   timestamp: string
   predicted_price: number
@@ -350,6 +368,32 @@ export interface TrainingResult {
   after_mse: number | null
   duration_seconds: number | null
   error: string | null
+}
+
+export interface ColabArtifactImportResponse {
+  status: string
+  imported_at: string
+  app_env: string
+  cache_cleared: boolean
+  imported_modes: string[]
+  imported_stock_ids: string[]
+  imported_reports: string[]
+  imported_checkpoints: string[]
+  imported_scalers: string[]
+  aggregate_report_path: string | null
+  skipped_entries: string[]
+}
+
+export interface FeatureAblationImportResponse {
+  status: string
+  imported_at: string
+  app_env: string
+  cache_cleared: boolean
+  imported_stock_ids: string[]
+  imported_modes: string[]
+  imported_reports: string[]
+  aggregate_report_path: string | null
+  skipped_entries: string[]
 }
 
 export interface TrainingRuntimeResponse {
@@ -430,6 +474,8 @@ export interface FeatureAblationEntryResponse {
 export interface FeatureAblationReportResponse {
   stock_id: string
   mode: VariantModelMode
+  generated_at: string | null
+  report_path: string | null
   configured_channels: string[]
   transform_name: TransformName
   entries: FeatureAblationEntryResponse[]

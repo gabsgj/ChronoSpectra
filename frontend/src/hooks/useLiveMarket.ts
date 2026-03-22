@@ -7,6 +7,7 @@ import type {
   LivePredictionPoint,
   VariantModelMode,
 } from '../types'
+import { formatApiError } from './formatApiError'
 
 const RECONNECT_DELAYS_MS = [1000, 2000, 4000]
 const LIVE_HISTORY_LIMIT = 2048
@@ -15,6 +16,7 @@ const LIVE_STORAGE_PREFIX = 'chronospectra-live-history-v1'
 interface LiveMarketState {
   connectionState: LiveConnectionState
   error: string | null
+  hint: string | null
   history: LivePredictionPoint[]
   reconnectAttempt: number
   snapshot: LiveMarketEvent | null
@@ -77,6 +79,7 @@ const buildInitialState = (
   return {
     connectionState: persistedState.snapshot?.market_open ? 'connecting' : 'idle',
     error: null,
+    hint: null,
     history: persistedState.history,
     reconnectAttempt: 0,
     snapshot: persistedState.snapshot,
@@ -133,6 +136,7 @@ export const useLiveMarket = (
     let receivedClosedPayload = false
     let source: EventSource | null = null
     let reconnectTimer: number | null = null
+    const availabilityController = new AbortController()
 
     const clearReconnectTimer = () => {
       if (reconnectTimer !== null) {
@@ -146,6 +150,45 @@ export const useLiveMarket = (
       source = null
     }
 
+    const setTerminalError = (error: string, hint: string | null = null) => {
+      allowReconnect = false
+      clearReconnectTimer()
+      closeSource()
+      setState((currentState) => ({
+        ...currentState,
+        connectionState: 'error',
+        error,
+        hint,
+        reconnectAttempt,
+      }))
+    }
+
+    const ensurePredictionAvailability = async () => {
+      try {
+        await apiClient.getPrediction(
+          stockId,
+          {
+            mode: mode ?? undefined,
+            signal: availabilityController.signal,
+          },
+        )
+        if (availabilityController.signal.aborted) {
+          return false
+        }
+        return true
+      } catch (error) {
+        if (availabilityController.signal.aborted) {
+          return false
+        }
+        const formattedError = formatApiError(
+          error,
+          'Unable to prepare the live prediction stream.',
+        )
+        setTerminalError(formattedError.error, formattedError.hint)
+        return false
+      }
+    }
+
     const openStream = () => {
       clearReconnectTimer()
       closeSource()
@@ -154,6 +197,7 @@ export const useLiveMarket = (
         ...currentState,
         connectionState: reconnectAttempt === 0 ? 'connecting' : 'reconnecting',
         error: null,
+        hint: null,
         reconnectAttempt,
       }))
 
@@ -168,6 +212,7 @@ export const useLiveMarket = (
         setState((currentState) => ({
           connectionState: payload.market_open ? 'live' : 'closed',
           error: null,
+          hint: null,
           history: mergeHistoryPoint(currentState.history, point),
           reconnectAttempt: 0,
           snapshot: payload,
@@ -200,6 +245,7 @@ export const useLiveMarket = (
             ...currentState,
             connectionState: 'error',
             error: 'The live stream stopped after 3 reconnect attempts.',
+            hint: 'Retry once the backend prediction stream is available again.',
             reconnectAttempt,
           }))
           allowReconnect = false
@@ -223,10 +269,17 @@ export const useLiveMarket = (
       }
     }
 
-    openStream()
+    void (async () => {
+      const isReady = await ensurePredictionAvailability()
+      if (!isReady || !allowReconnect) {
+        return
+      }
+      openStream()
+    })()
 
     return () => {
       allowReconnect = false
+      availabilityController.abort()
       clearReconnectTimer()
       closeSource()
     }

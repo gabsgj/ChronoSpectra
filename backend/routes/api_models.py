@@ -102,6 +102,32 @@ class TrainingStartResponse(BaseModel):
     started_at: str
 
 
+class ColabArtifactImportResponse(BaseModel):
+    status: str
+    imported_at: str
+    app_env: str
+    cache_cleared: bool
+    imported_modes: list[str]
+    imported_stock_ids: list[str]
+    imported_reports: list[str]
+    imported_checkpoints: list[str]
+    imported_scalers: list[str]
+    aggregate_report_path: str | None = None
+    skipped_entries: list[str] = []
+
+
+class FeatureAblationImportResponse(BaseModel):
+    status: str
+    imported_at: str
+    app_env: str
+    cache_cleared: bool
+    imported_stock_ids: list[str]
+    imported_modes: list[str]
+    imported_reports: list[str]
+    aggregate_report_path: str | None = None
+    skipped_entries: list[str] = []
+
+
 class TrainingRuntimeResponse(BaseModel):
     run_id: str | None = None
     is_running: bool
@@ -180,6 +206,8 @@ class FeatureAblationEntryResponse(BaseModel):
 class FeatureAblationReportResponse(BaseModel):
     stock_id: str
     mode: str
+    generated_at: str | None = None
+    report_path: str | None = None
     configured_channels: list[str]
     transform_name: str
     entries: list[FeatureAblationEntryResponse]
