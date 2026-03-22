@@ -47,13 +47,6 @@ const resolveApiBaseUrl = () => {
     import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_BASE_URL
   if (configuredUrl) {
     const normalizedConfiguredUrl = configuredUrl.replace(/\/$/, '')
-    if (typeof window !== 'undefined') {
-      const isFrontendLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname)
-      const isConfiguredLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(normalizedConfiguredUrl)
-      if (!isFrontendLocalhost && isConfiguredLocalhost) {
-        return window.location.origin.replace(/\/$/, '')
-      }
-    }
     return normalizedConfiguredUrl
   }
   if (typeof window !== 'undefined') {
@@ -86,7 +79,19 @@ const requestJson = async <T>(path: string, init?: RequestInit): Promise<T> => {
       },
     )
   }
-  return (await response.json()) as T
+
+  try {
+    return (await response.json()) as T
+  } catch {
+    throw new ApiClientError(
+      'Received a non-JSON response from the backend endpoint.',
+      {
+        status: response.status,
+        errorCode: null,
+        hint: `Verify VITE_BACKEND_URL points to your backend origin (current: ${API_BASE_URL}) and not to the frontend origin.`,
+      },
+    )
+  }
 }
 
 const requestBlob = async (
