@@ -17,7 +17,7 @@ const getInitialTheme = (): ThemeMode => {
   if (storedTheme === 'light' || storedTheme === 'dark') {
     return storedTheme
   }
-  return getSystemTheme()
+  return 'light'
 }
 
 export const useTheme = () => {

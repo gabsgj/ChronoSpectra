@@ -8,6 +8,8 @@ interface SidebarProps {
   trainingRuntime: TrainingRuntimeResponse | null
   trainingRuntimeError: string | null
   trainingRuntimeLoading: boolean
+  className?: string
+  onNavigate?: () => void
 }
 
 const buildTrainingRouteMeta = ({
@@ -64,6 +66,8 @@ export const Sidebar = ({
   trainingRuntime,
   trainingRuntimeError,
   trainingRuntimeLoading,
+  className,
+  onNavigate,
 }: SidebarProps) => {
   const trainingRouteMeta = buildTrainingRouteMeta({
     runtime: trainingRuntime,
@@ -72,7 +76,7 @@ export const Sidebar = ({
   })
 
   return (
-    <aside className="panel-surface sticky top-4 hidden h-[calc(100svh-2rem)] min-h-0 w-72 shrink-0 overflow-y-auto p-5 lg:flex lg:flex-col lg:justify-between">
+    <aside className={className ?? 'panel-surface sticky top-4 hidden h-[calc(100svh-2rem)] min-h-0 w-72 shrink-0 overflow-y-auto p-5 lg:flex lg:flex-col lg:justify-between'}>
       <div className="space-y-6">
         <div className="space-y-3">
           <p className="eyebrow">Workspace</p>
@@ -124,6 +128,7 @@ export const Sidebar = ({
               key={route.id}
               to={route.navPath}
               end={route.end}
+              onClick={onNavigate}
               className={({ isActive }) => {
                 const routeEmphasis =
                   route.id === 'training' && trainingRouteMeta?.emphasisClass

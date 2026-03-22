@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { Suspense, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 
 import { MobileNav } from './components/layout/MobileNav'
@@ -15,7 +15,7 @@ import { useTheme } from './hooks/useTheme'
  * Frontend decisions:
  * - Config loads from the shared root `stocks.json` through `config/stocksConfig.ts`, keeping route and UI state config-driven.
  * - Route metadata lives in one manifest so the router, sidebar, and mobile nav never drift apart.
- * - Theme state persists in `localStorage`, follows system preference when unset, and toggles the `dark` class on `<html>`.
+ * - Theme state persists in `localStorage`, defaults to light mode when unset, and toggles the `dark` class on `<html>`.
  * - Active stock context lives in the URL for stock-specific pages, which keeps navigation and refresh behavior aligned.
  * - Live data stays page-local so SSE only runs when the Live Testing route is mounted.
  */
@@ -44,6 +44,7 @@ interface AppShellProps {
 function AppShell({ isTrainingRoute, onToggleTheme, theme }: AppShellProps) {
   const trainingReports = useSharedTrainingReports()
   const trainingRuntime = trainingReports.data?.runtime ?? null
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
 
   return (
     <div className="relative min-h-screen overflow-x-clip bg-shell text-ink">
@@ -58,6 +59,7 @@ function AppShell({ isTrainingRoute, onToggleTheme, theme }: AppShellProps) {
           <Navbar
             theme={theme}
             onToggleTheme={onToggleTheme}
+            onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
             trainingRuntime={trainingRuntime}
             trainingRuntimeLoading={trainingReports.isLoading}
             trainingRuntimeError={trainingReports.error}
@@ -83,6 +85,26 @@ function AppShell({ isTrainingRoute, onToggleTheme, theme }: AppShellProps) {
           <Footer />
         </div>
       </div>
+
+      {isMobileSidebarOpen ? (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Sidebar navigation">
+          <button
+            type="button"
+            className="absolute inset-0 bg-[#0c1626]/40"
+            aria-label="Close sidebar navigation"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          />
+          <div className="relative h-full w-[min(88vw,22rem)] p-3">
+            <Sidebar
+              trainingRuntime={trainingRuntime}
+              trainingRuntimeLoading={trainingReports.isLoading}
+              trainingRuntimeError={trainingReports.error}
+              onNavigate={() => setIsMobileSidebarOpen(false)}
+              className="panel-surface flex h-full min-h-0 w-full flex-col justify-between overflow-y-auto p-5"
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }
