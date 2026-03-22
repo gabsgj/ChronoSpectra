@@ -411,7 +411,7 @@ These artifacts are required for prediction, comparison, backtesting, and retrai
 - `API_REFERENCE.md`: endpoint catalog
 - `TASKS.md`: implementation task tracking
 - `PROGRESS.md`: progress timeline
-- `RAILWAY_DEPLOYMENT.md`: Railway service setup guide
+
 
 ## License
 
