@@ -6,9 +6,10 @@ import numpy as np
 
 
 @dataclass(slots=True)
-class PriceSignal:
+class FeatureSignal:
     stock_id: str
     ticker: str
+    feature_channel: str
     timestamps: list[str]
     raw_values: np.ndarray
     normalized_values: np.ndarray
@@ -20,6 +21,7 @@ class PriceSignal:
 class SpectrogramArtifact:
     stock_id: str
     ticker: str
+    feature_channel: str
     transform: str
     signal_timestamps: list[str]
     raw_signal: list[float]
@@ -47,6 +49,7 @@ class STFTFrameArtifact:
 class STFTFramesArtifact:
     stock_id: str
     ticker: str
+    feature_channel: str
     transform: str
     frequency_axis: list[float]
     frames: list[STFTFrameArtifact]
@@ -56,6 +59,7 @@ class STFTFramesArtifact:
 class FFTSpectrumArtifact:
     stock_id: str
     ticker: str
+    feature_channel: str
     frequency_axis: list[float]
     amplitude: list[float]
     signal_timestamps: list[str]

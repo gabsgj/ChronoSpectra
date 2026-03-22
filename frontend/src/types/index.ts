@@ -6,6 +6,12 @@ export type ModelMode =
   | 'both'
 export type VariantModelMode = Exclude<ModelMode, 'both'>
 export type TransformName = 'stft' | 'cwt' | 'hht'
+export type FeatureChannelName =
+  | 'price'
+  | 'index'
+  | 'usd_inr'
+  | 'revenue'
+  | 'profit'
 
 export interface MarketHours {
   timezone: string
@@ -61,7 +67,7 @@ export interface SignalProcessingConfig {
 }
 
 export interface TrainingConfig {
-  feature_channels?: Array<'price' | 'index' | 'usd_inr' | 'revenue' | 'profit'>
+  feature_channels?: FeatureChannelName[]
   split: {
     train: number
     val: number
@@ -158,6 +164,7 @@ export interface FeatureEffectStockResponse {
 export interface FFTResponse {
   stock_id: string
   ticker: string
+  feature_channel: FeatureChannelName
   frequency: number[]
   amplitude: number[]
   signal_timestamps: string[]
@@ -168,6 +175,7 @@ export interface FFTResponse {
 export interface SpectrogramResponse {
   stock_id: string
   ticker: string
+  feature_channel: FeatureChannelName
   transform: TransformName
   signal_timestamps: string[]
   raw_signal: number[]
@@ -192,6 +200,7 @@ export interface STFTFrame {
 export interface STFTFramesResponse {
   stock_id: string
   ticker: string
+  feature_channel: FeatureChannelName
   transform: string
   frequency_axis: number[]
   frames: STFTFrame[]
@@ -217,7 +226,9 @@ export interface HHTParameters {
 export interface SpectrogramRequestParams
   extends Partial<STFTParameters>,
     Partial<CWTParameters>,
-    Partial<HHTParameters> {}
+    Partial<HHTParameters> {
+  channel?: FeatureChannelName
+}
 
 export interface MarketStatusResponse {
   exchange: string
@@ -397,6 +408,7 @@ export interface TrainingReportDetailResponse {
   prediction_horizon_days: number | null
   transform_name: string | null
   lookback_days: number | null
+  feature_channels: string[] | null
 }
 
 export interface FeatureAblationEntryResponse {

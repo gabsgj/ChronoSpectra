@@ -181,6 +181,7 @@ def training_report_detail(
         prediction_horizon_days=_as_int(payload.get("prediction_horizon_days")),
         transform_name=_as_str(payload.get("transform_name")),
         lookback_days=_as_int(payload.get("lookback_days")),
+        feature_channels=_safe_str_list(payload.get("feature_channels")),
     )
 
 
@@ -321,3 +322,9 @@ def _safe_dict(value: Any) -> dict[str, Any]:
     if isinstance(value, dict):
         return value
     return {}
+
+
+def _safe_str_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if isinstance(item, str)]

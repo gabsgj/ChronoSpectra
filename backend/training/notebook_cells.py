@@ -30,7 +30,7 @@ def build_notebook_cells(app_config: dict[str, Any], mode: str) -> list[dict[str
         _code_cell(_model_architecture_source()),
         _markdown_cell(
             "Data Pipeline",
-            "This section fetches yfinance close prices, normalizes them, converts windows to STFT spectrograms, and builds leakage-safe samples.",
+            "This section fetches the configured feature channels, aligns daily and quarterly series, normalizes each channel independently, and stacks channel spectrograms into leakage-safe samples.",
         ),
         _code_cell(_data_pipeline_source()),
         _markdown_cell(
@@ -71,7 +71,7 @@ def _code_cell(source: str) -> dict[str, Any]:
 
 def _dependency_install_source() -> str:
     return """
-    !pip install -q yfinance torch scipy matplotlib scikit-learn
+    !pip install -q yfinance torch scipy matplotlib pandas scikit-learn
     """
 
 
@@ -84,6 +84,20 @@ from pathlib import Path
 
 CONFIG = json.loads({config_literal})
 ACTIVE_STOCKS = [stock for stock in CONFIG["stocks"] if stock.get("enabled", True)]
+SUPPORTED_FEATURE_CHANNELS = {{"price", "index", "usd_inr", "revenue", "profit"}}
+FEATURE_CHANNEL_NAMES = []
+for channel_name in CONFIG.get("training", {{}}).get("feature_channels", ["price"]):
+    if not isinstance(channel_name, str):
+        continue
+    normalized_channel = channel_name.strip().lower()
+    if normalized_channel not in SUPPORTED_FEATURE_CHANNELS:
+        continue
+    if normalized_channel in FEATURE_CHANNEL_NAMES:
+        continue
+    FEATURE_CHANNEL_NAMES.append(normalized_channel)
+if not FEATURE_CHANNEL_NAMES:
+    FEATURE_CHANNEL_NAMES = ["price"]
+CONFIG.setdefault("training", {{}})["feature_channels"] = FEATURE_CHANNEL_NAMES
 NOTEBOOK_MODE = "{mode}"
 SMOKE_MODE = os.environ.get("FINSPECTRA_NOTEBOOK_SMOKE") == "1"
 if SMOKE_MODE:
@@ -97,6 +111,8 @@ print("Notebook mode:", NOTEBOOK_MODE)
 print("Smoke mode:", SMOKE_MODE)
 print("Configured app mode:", CONFIG["model_mode"])
 print("Active stocks:", [stock["id"] for stock in ACTIVE_STOCKS])
+print("Feature channels:", FEATURE_CHANNEL_NAMES)
+print("Input channels:", len(FEATURE_CHANNEL_NAMES))
     """
 
 
@@ -105,7 +121,7 @@ def _model_architecture_source() -> str:
     import torch
     from torch import nn
 
-    DEFAULT_IN_CHANNELS = 1
+    DEFAULT_IN_CHANNELS = len(FEATURE_CHANNEL_NAMES)
     FEATURE_CHANNELS = (16, 32, 64)
     FEATURE_MAP_SIZE = (4, 4)
     HIDDEN_LAYER_SIZE = 128
@@ -174,8 +190,13 @@ def _model_architecture_source() -> str:
     class UnifiedCNNWithEmbeddings(BaseModel):
         model_name = "unified_with_embeddings"
 
-        def __init__(self, num_stocks: int, embedding_dim: int = 8) -> None:
-            super().__init__(in_channels=DEFAULT_IN_CHANNELS)
+        def __init__(
+            self,
+            num_stocks: int,
+            embedding_dim: int = 8,
+            in_channels: int = DEFAULT_IN_CHANNELS,
+        ) -> None:
+            super().__init__(in_channels=in_channels)
             self.features = self.build_feature_extractor()
             self.stock_embedding = nn.Embedding(num_stocks, embedding_dim)
             self.regressor = self.build_regressor_head(extra_features=embedding_dim)
@@ -194,21 +215,99 @@ def _data_pipeline_source() -> str:
     import yfinance as yf
     from scipy.signal import stft
 
+    STATEMENT_SCALE_TO_CRORES = 10_000_000
+    REVENUE_LABELS = ("Total Revenue", "Operating Revenue", "Revenue")
+    PROFIT_LABELS = ("Gross Profit", "Net Income", "Net Income Common Stockholders")
     WINDOW_LENGTH = int(CONFIG["signal_processing"]["stft"]["window_length"])
     HOP_SIZE = int(CONFIG["signal_processing"]["stft"]["hop_size"])
     N_FFT = int(CONFIG["signal_processing"]["stft"]["n_fft"])
     LOOKBACK_DAYS = max(WINDOW_LENGTH * 4, N_FFT)
 
-    def fetch_close_series(stock_config: dict) -> pd.Series:
-        ticker = yf.Ticker(stock_config["ticker"])
-        period = f"{int(stock_config['model']['training_data_years'])}y"
-        history = ticker.history(period=period, interval="1d", auto_adjust=False)
-        if history.empty:
-            raise ValueError(f"No historical data returned for {stock_config['id']}.")
-        close_series = history["Close"].dropna().astype(float)
-        if close_series.empty:
-            raise ValueError(f"No close prices returned for {stock_config['id']}.")
-        return close_series
+    def fetch_history(ticker_symbol: str, period: str) -> pd.DataFrame:
+        history = yf.Ticker(ticker_symbol).history(period=period, interval="1d", auto_adjust=False)
+        if isinstance(history, pd.DataFrame):
+            return history
+        return pd.DataFrame()
+
+    def fetch_daily_close_series(
+        ticker_symbol: str,
+        period: str,
+        stock_id: str,
+        label: str,
+    ) -> pd.DataFrame:
+        history = fetch_history(ticker_symbol, period)
+        if history.empty or "Close" not in history.columns:
+            raise ValueError(f"No {label} history returned for {stock_id}.")
+        close_frame = history[["Close"]].rename(columns={"Close": "close"}).dropna().copy()
+        if close_frame.empty:
+            raise ValueError(f"No {label} values returned for {stock_id}.")
+        close_frame.index = pd.to_datetime(close_frame.index).tz_localize(None)
+        return close_frame.sort_index()
+
+    def extract_statement_frame(
+        income_statement: pd.DataFrame,
+        candidate_labels: tuple[str, ...],
+    ) -> pd.DataFrame:
+        if income_statement.empty:
+            return pd.DataFrame(columns=["quarter", "value_crores"])
+        matched_label = next(
+            (label for label in candidate_labels if label in income_statement.index),
+            None,
+        )
+        if matched_label is None:
+            return pd.DataFrame(columns=["quarter", "value_crores"])
+        value_series = income_statement.loc[matched_label].dropna()
+        if value_series.empty:
+            return pd.DataFrame(columns=["quarter", "value_crores"])
+        statement_frame = value_series.rename("value_crores").reset_index()
+        statement_frame.columns = ["quarter", "value_crores"]
+        statement_frame["quarter"] = pd.to_datetime(
+            statement_frame["quarter"]
+        ).dt.tz_localize(None)
+        statement_frame["value_crores"] = statement_frame["value_crores"].astype(float)
+        statement_frame["value_crores"] = (
+            statement_frame["value_crores"] / STATEMENT_SCALE_TO_CRORES
+        )
+        return statement_frame.sort_values("quarter").reset_index(drop=True)
+
+    def prepare_daily_track(track_name: str, frame: pd.DataFrame) -> pd.DataFrame:
+        if frame.empty:
+            return pd.DataFrame(columns=[track_name])
+        normalized_frame = frame.copy()
+        normalized_frame.index = pd.to_datetime(normalized_frame.index).tz_localize(None)
+        normalized_frame.index = normalized_frame.index.normalize()
+        value_column = "close" if "close" in normalized_frame.columns else normalized_frame.columns[0]
+        return normalized_frame[[value_column]].rename(columns={value_column: track_name})
+
+    def align_daily_tracks(daily_tracks: dict[str, pd.DataFrame]) -> pd.DataFrame:
+        prepared_tracks = [
+            prepare_daily_track(track_name, frame)
+            for track_name, frame in daily_tracks.items()
+        ]
+        non_empty_tracks = [frame for frame in prepared_tracks if not frame.empty]
+        if not non_empty_tracks:
+            return pd.DataFrame()
+        return pd.concat(non_empty_tracks, axis=1, join="inner").sort_index().dropna(how="any")
+
+    def prepare_quarterly_track(track_name: str, frame: pd.DataFrame) -> pd.DataFrame:
+        if frame.empty:
+            return pd.DataFrame(columns=[track_name])
+        normalized_frame = frame.copy()
+        normalized_frame["quarter"] = pd.to_datetime(
+            normalized_frame["quarter"]
+        ).dt.tz_localize(None)
+        normalized_frame = normalized_frame.set_index("quarter")
+        return normalized_frame[["value_crores"]].rename(columns={"value_crores": track_name})
+
+    def align_quarterly_tracks(quarterly_tracks: dict[str, pd.DataFrame]) -> pd.DataFrame:
+        prepared_tracks = [
+            prepare_quarterly_track(track_name, frame)
+            for track_name, frame in quarterly_tracks.items()
+        ]
+        non_empty_tracks = [frame for frame in prepared_tracks if not frame.empty]
+        if not non_empty_tracks:
+            return pd.DataFrame()
+        return pd.concat(non_empty_tracks, axis=1, join="outer").sort_index()
 
     def minmax_normalize(values: np.ndarray) -> tuple[np.ndarray, dict]:
         minimum_value = float(np.min(values))
@@ -239,11 +338,101 @@ def _data_pipeline_source() -> str:
         )
         return np.abs(spectrum) ** 2
 
+    def load_feature_series(stock_config: dict) -> dict:
+        stock_id = stock_config["id"]
+        period = f"{int(stock_config['model']['training_data_years'])}y"
+        exchange_config = CONFIG["exchanges"][stock_config["exchange"]]
+        selected_channels = set(FEATURE_CHANNEL_NAMES)
+
+        daily_tracks = {
+            "price": fetch_daily_close_series(
+                stock_config["ticker"],
+                period,
+                stock_id,
+                "close-price",
+            ),
+        }
+        if "index" in selected_channels:
+            daily_tracks["index"] = fetch_daily_close_series(
+                exchange_config["market_index_ticker"],
+                period,
+                stock_id,
+                "market-index",
+            )
+        if "usd_inr" in selected_channels:
+            daily_tracks["usd_inr"] = fetch_daily_close_series(
+                exchange_config["currency_pair"],
+                period,
+                stock_id,
+                "currency-pair",
+            )
+
+        aligned_daily = align_daily_tracks(daily_tracks)
+        if aligned_daily.empty or "price" not in aligned_daily.columns:
+            raise ValueError(f"No aligned daily price series found for {stock_id}.")
+
+        working_frame = aligned_daily[["price"]].copy()
+        for optional_daily_channel in ("index", "usd_inr"):
+            if optional_daily_channel in aligned_daily.columns:
+                working_frame[optional_daily_channel] = aligned_daily[optional_daily_channel]
+
+        if "revenue" in selected_channels or "profit" in selected_channels:
+            income_statement = yf.Ticker(stock_config["ticker"]).quarterly_income_stmt
+            quarterly_tracks = {}
+            if "revenue" in selected_channels:
+                quarterly_tracks["revenue"] = extract_statement_frame(
+                    income_statement,
+                    REVENUE_LABELS,
+                )
+            if "profit" in selected_channels:
+                quarterly_tracks["profit"] = extract_statement_frame(
+                    income_statement,
+                    PROFIT_LABELS,
+                )
+            aligned_quarterly = align_quarterly_tracks(quarterly_tracks)
+            if aligned_quarterly.empty:
+                raise ValueError(
+                    f"Quarterly fundamentals are unavailable for requested channels on {stock_id}."
+                )
+            quarterly_on_daily = aligned_quarterly.reindex(working_frame.index).ffill().bfill()
+            for column_name in quarterly_on_daily.columns:
+                working_frame[column_name] = quarterly_on_daily[column_name]
+
+        required_columns = ["price", *[channel for channel in FEATURE_CHANNEL_NAMES if channel != "price"]]
+        filtered_frame = working_frame[required_columns].dropna(how="any").sort_index()
+        if filtered_frame.empty:
+            raise ValueError(f"No aligned feature rows found for {stock_id}.")
+
+        raw_by_channel = {}
+        normalized_by_channel = {}
+        minimum_by_channel = {}
+        maximum_by_channel = {}
+        for channel_name in required_columns:
+            values = filtered_frame[channel_name].to_numpy(dtype=float)
+            normalized_values, scaler = minmax_normalize(values)
+            raw_by_channel[channel_name] = values
+            normalized_by_channel[channel_name] = normalized_values
+            minimum_by_channel[channel_name] = scaler["minimum_value"]
+            maximum_by_channel[channel_name] = scaler["maximum_value"]
+
+        timestamps = [
+            pd.Timestamp(timestamp).tz_localize(None).isoformat()
+            for timestamp in filtered_frame.index
+        ]
+
+        return {
+            "timestamps": timestamps,
+            "raw_by_channel": raw_by_channel,
+            "normalized_by_channel": normalized_by_channel,
+            "minimum_by_channel": minimum_by_channel,
+            "maximum_by_channel": maximum_by_channel,
+        }
+
     def build_samples(stock_config: dict, stock_index: int) -> tuple[list[dict], dict]:
-        close_series = fetch_close_series(stock_config)
-        raw_values = close_series.to_numpy(dtype=float)
-        normalized_values, scaler = minmax_normalize(raw_values)
-        timestamps = [pd.Timestamp(timestamp).tz_localize(None).isoformat() for timestamp in close_series.index]
+        feature_series = load_feature_series(stock_config)
+        raw_values = feature_series["raw_by_channel"]["price"]
+        normalized_values = feature_series["normalized_by_channel"]["price"]
+        timestamps = feature_series["timestamps"]
         horizon = int(stock_config["model"]["prediction_horizon_days"])
         upper_bound = len(normalized_values) - LOOKBACK_DAYS - horizon + 1
         if upper_bound <= 0:
@@ -253,10 +442,16 @@ def _data_pipeline_source() -> str:
             stop_index = start_index + LOOKBACK_DAYS
             window_end_index = stop_index - 1
             label_index = window_end_index + horizon
-            spectrogram = build_stft_spectrogram(normalized_values[start_index:stop_index]).astype(np.float32)
+            channel_spectrograms = []
+            for channel_name in FEATURE_CHANNEL_NAMES:
+                channel_values = feature_series["normalized_by_channel"][channel_name]
+                spectrogram = build_stft_spectrogram(
+                    channel_values[start_index:stop_index]
+                ).astype(np.float32)
+                channel_spectrograms.append(spectrogram)
             samples.append(
                 {
-                    "inputs": np.expand_dims(spectrogram, axis=0),
+                    "inputs": np.stack(channel_spectrograms, axis=0),
                     "target_normalized": float(normalized_values[label_index]),
                     "target_raw": float(raw_values[label_index]),
                     "reference_raw": float(raw_values[window_end_index]),
@@ -266,7 +461,10 @@ def _data_pipeline_source() -> str:
                     "label_timestamp": timestamps[label_index],
                 }
             )
-        return samples, scaler
+        return samples, {
+            "minimum_value": feature_series["minimum_by_channel"]["price"],
+            "maximum_value": feature_series["maximum_by_channel"]["price"],
+        }
     """
 
 
@@ -297,6 +495,12 @@ def _training_loop_source() -> str:
                 "target_raw": torch.tensor(sample["target_raw"], dtype=torch.float32),
             }
 
+        @property
+        def input_shape(self) -> tuple[int, ...]:
+            if not self.samples:
+                return ()
+            return tuple(self.samples[0]["inputs"].shape)
+
     def time_split(samples: list[dict]) -> tuple[list[dict], list[dict], list[dict]]:
         ordered_samples = sorted(samples, key=lambda sample: (sample["label_timestamp"], sample["stock_id"]))
         train_end = int(len(ordered_samples) * float(CONFIG["training"]["split"]["train"]))
@@ -311,30 +515,42 @@ def _training_loop_source() -> str:
             "val": SpectrogramDataset(val_samples),
             "test": SpectrogramDataset(test_samples),
             "scalers": {stock_config["id"]: scaler},
+            "feature_channels": list(FEATURE_CHANNEL_NAMES),
+            "lookback_days": LOOKBACK_DAYS,
+            "prediction_horizon_days": int(stock_config["model"]["prediction_horizon_days"]),
         }
 
     def build_unified_bundle(active_stocks: list[dict]) -> dict:
         all_samples = []
         scalers = {}
+        prediction_horizon_days = None
         for stock_index, stock_config in enumerate(active_stocks):
             stock_samples, scaler = build_samples(stock_config, stock_index)
             all_samples.extend(stock_samples)
             scalers[stock_config["id"]] = scaler
+            if prediction_horizon_days is None:
+                prediction_horizon_days = int(stock_config["model"]["prediction_horizon_days"])
         train_samples, val_samples, test_samples = time_split(all_samples)
         return {
             "train": SpectrogramDataset(train_samples),
             "val": SpectrogramDataset(val_samples),
             "test": SpectrogramDataset(test_samples),
             "scalers": scalers,
+            "feature_channels": list(FEATURE_CHANNEL_NAMES),
+            "lookback_days": LOOKBACK_DAYS,
+            "prediction_horizon_days": prediction_horizon_days or 0,
         }
 
     def create_model(mode: str, num_stocks: int) -> BaseModel:
         if mode == "per_stock":
-            return PerStockCNN()
+            return PerStockCNN(in_channels=len(FEATURE_CHANNEL_NAMES))
         if mode == "unified":
-            return UnifiedCNN()
+            return UnifiedCNN(in_channels=len(FEATURE_CHANNEL_NAMES))
         if mode == "unified_with_embeddings":
-            return UnifiedCNNWithEmbeddings(num_stocks=num_stocks)
+            return UnifiedCNNWithEmbeddings(
+                num_stocks=num_stocks,
+                in_channels=len(FEATURE_CHANNEL_NAMES),
+            )
         raise ValueError(f"Unsupported notebook mode: {mode}")
 
     def forward_model(model: BaseModel, mode: str, batch: dict) -> torch.Tensor:
@@ -380,6 +596,17 @@ def _training_loop_source() -> str:
                 best_val_loss = epoch_metrics["val_loss"]
                 torch.save(model.state_dict(), checkpoint_path)
         return history
+
+    def load_trained_model(mode: str, num_stocks: int, checkpoint_path: Path) -> BaseModel:
+        model = create_model(mode, num_stocks=num_stocks)
+        state_dict = torch.load(checkpoint_path, map_location="cpu")
+        if isinstance(state_dict, dict) and "state_dict" in state_dict:
+            state_dict = state_dict["state_dict"]
+        if not isinstance(state_dict, dict):
+            raise ValueError(f"Unsupported checkpoint format in {checkpoint_path.name}.")
+        model.load_state_dict(state_dict)
+        model.eval()
+        return model
 
     def evaluate_model(model: BaseModel, dataset: SpectrogramDataset, scalers: dict, mode: str) -> dict:
         loader = DataLoader(dataset, batch_size=int(CONFIG["training"]["batch_size"]), shuffle=False)
@@ -431,6 +658,17 @@ def _training_loop_source() -> str:
         for stock_id, scaler in scalers.items():
             with (scaler_dir / f"{stock_id}_scaler.pkl").open("wb") as handle:
                 pickle.dump(scaler, handle)
+
+    def build_dataset_summary(datasets: dict) -> dict:
+        return {
+            "train_count": len(datasets["train"]),
+            "val_count": len(datasets["val"]),
+            "test_count": len(datasets["test"]),
+            "input_shape": list(datasets["train"].input_shape),
+            "feature_channels": list(datasets["feature_channels"]),
+            "lookback_days": int(datasets["lookback_days"]),
+            "prediction_horizon_days": int(datasets["prediction_horizon_days"]),
+        }
     """
 
 
@@ -444,10 +682,15 @@ def _run_training_source(mode: str) -> str:
     def train_and_record(mode_name: str, datasets: dict, checkpoint_path: Path) -> None:
         model = create_model(mode_name, num_stocks=len(ACTIVE_STOCKS))
         history = train_model(model, datasets, mode_name, checkpoint_path)
-        metrics = evaluate_model(model, datasets["test"], datasets["scalers"], mode_name)
+        best_model = load_trained_model(mode_name, len(ACTIVE_STOCKS), checkpoint_path)
+        metrics = evaluate_model(best_model, datasets["test"], datasets["scalers"], mode_name)
         training_report.append({{
             "mode": mode_name,
             "checkpoint_path": str(checkpoint_path),
+            "feature_channels": list(datasets["feature_channels"]),
+            "lookback_days": int(datasets["lookback_days"]),
+            "prediction_horizon_days": int(datasets["prediction_horizon_days"]),
+            "dataset_summary": build_dataset_summary(datasets),
             "history": history,
             "metrics": metrics,
         }})

@@ -88,6 +88,7 @@ def predict(
         predicted_price=predicted_price,
         predicted_price_normalized=predicted_normalized,
         signal_window_length=int(latest_window["signal_window_length"]),
+        feature_channels=list(latest_window["feature_channels"]),
     )
 
 

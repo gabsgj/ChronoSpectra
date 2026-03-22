@@ -2,56 +2,63 @@ from __future__ import annotations
 
 from typing import Any
 
-import pandas as pd
-
 from data.cache.data_cache import DataCache
-from data.fetchers import get_fetcher
-from data.normalizers.minmax_normalizer import MinMaxNormalizer
-from signal_processing.signal_payloads import PriceSignal
+from data.feature_series_loader import FeatureSeriesLoader
+from signal_processing.signal_payloads import FeatureSignal
+from training.feature_channels import SUPPORTED_FEATURE_CHANNELS
 
 CACHE_TTL_SECONDS = 900
 
 
-class PriceSignalLoader:
+class FeatureSignalLoader:
     def __init__(self, app_config: dict[str, Any], cache: DataCache) -> None:
         self.config = app_config
         self.cache = cache
+        self.series_loader = FeatureSeriesLoader(app_config, cache)
 
-    def load(self, stock_config: dict[str, Any]) -> PriceSignal:
-        years = stock_config["model"]["training_data_years"]
-        cache_key = f"price-signal:{stock_config['id']}:{years}"
+    def load(
+        self,
+        stock_config: dict[str, Any],
+        feature_channel: str = "price",
+    ) -> FeatureSignal:
+        resolved_channel = self._resolve_feature_channel(feature_channel)
+        years = int(stock_config["model"]["training_data_years"])
+        cache_key = f"feature-signal:{stock_config['id']}:{years}:{resolved_channel}"
         return self.cache.get_or_set(
             cache_key,
-            lambda: self._build_signal(stock_config, years),
+            lambda: self._build_signal(stock_config, resolved_channel),
             CACHE_TTL_SECONDS,
         )
 
-    def _build_signal(self, stock_config: dict[str, Any], years: int) -> PriceSignal:
-        fetcher = get_fetcher(stock_config, self.config)
-        ohlcv_frame = fetcher.fetch_historical_ohlcv(years)
-        close_frame = self._prepare_close_frame(ohlcv_frame, stock_config["id"])
-        raw_values = close_frame["close"].to_numpy(dtype=float)
-        normalizer = MinMaxNormalizer().fit(raw_values)
-        normalized_values = normalizer.transform(raw_values)
-        timestamps = [
-            pd.Timestamp(timestamp).tz_localize(None).isoformat()
-            for timestamp in close_frame.index
-        ]
-        return PriceSignal(
+    def _build_signal(
+        self,
+        stock_config: dict[str, Any],
+        feature_channel: str,
+    ) -> FeatureSignal:
+        feature_series = self.series_loader.load(stock_config, [feature_channel])
+        raw_values = feature_series.raw_by_channel[feature_channel]
+        normalized_values = feature_series.normalized_by_channel[feature_channel]
+        return FeatureSignal(
             stock_id=stock_config["id"],
-            ticker=fetcher.get_resolved_ticker(),
-            timestamps=timestamps,
+            ticker=feature_series.ticker,
+            feature_channel=feature_channel,
+            timestamps=feature_series.timestamps,
             raw_values=raw_values,
             normalized_values=normalized_values,
-            minimum_value=float(normalizer.minimum_value or 0.0),
-            maximum_value=float(normalizer.maximum_value or 0.0),
+            minimum_value=feature_series.minimum_by_channel[feature_channel],
+            maximum_value=feature_series.maximum_by_channel[feature_channel],
         )
 
-    def _prepare_close_frame(self, ohlcv_frame: pd.DataFrame, stock_id: str) -> pd.DataFrame:
-        if ohlcv_frame.empty or "close" not in ohlcv_frame.columns:
-            raise ValueError(f"No close-price series found for {stock_id}.")
-        close_frame = ohlcv_frame[["close"]].dropna().copy()
-        if close_frame.empty:
-            raise ValueError(f"No non-null close-price series found for {stock_id}.")
-        close_frame.index = pd.to_datetime(close_frame.index).tz_localize(None)
-        return close_frame.sort_index()
+    def _resolve_feature_channel(self, feature_channel: str) -> str:
+        normalized_channel = feature_channel.strip().lower()
+        if normalized_channel not in SUPPORTED_FEATURE_CHANNELS:
+            supported = ", ".join(SUPPORTED_FEATURE_CHANNELS)
+            raise ValueError(
+                f"Unsupported feature channel '{feature_channel}'. Expected one of: {supported}."
+            )
+        return normalized_channel
+
+
+class PriceSignalLoader(FeatureSignalLoader):
+    def load(self, stock_config: dict[str, Any]) -> FeatureSignal:
+        return super().load(stock_config, feature_channel="price")

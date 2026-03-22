@@ -38,6 +38,7 @@ class PredictionResponse(BaseModel):
     predicted_price: float
     predicted_price_normalized: float
     signal_window_length: int
+    feature_channels: list[str]
 
 
 class ModelVariantResponse(BaseModel):
@@ -157,6 +158,7 @@ class TrainingReportDetailResponse(BaseModel):
     prediction_horizon_days: int | None = None
     transform_name: str | None = None
     lookback_days: int | None = None
+    feature_channels: list[str] | None = None
 
 
 class FeatureAblationEntryResponse(BaseModel):
@@ -263,6 +265,7 @@ class MarketDataResponse(BaseModel):
 class FFTResponse(BaseModel):
     stock_id: str
     ticker: str
+    feature_channel: str
     frequency: list[float]
     amplitude: list[float]
     signal_timestamps: list[str]
@@ -273,6 +276,7 @@ class FFTResponse(BaseModel):
 class SpectrogramResponse(BaseModel):
     stock_id: str
     ticker: str
+    feature_channel: str
     transform: str
     signal_timestamps: list[str]
     raw_signal: list[float]
@@ -297,6 +301,7 @@ class STFTFrameResponse(BaseModel):
 class STFTFramesResponse(BaseModel):
     stock_id: str
     ticker: str
+    feature_channel: str
     transform: str
     frequency_axis: list[float]
     frames: list[STFTFrameResponse]

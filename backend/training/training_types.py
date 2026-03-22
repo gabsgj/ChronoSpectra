@@ -79,6 +79,7 @@ class DatasetBundle:
     val_dataset: SpectrogramDataset
     test_dataset: SpectrogramDataset
     scalers_by_stock: dict[str, ScalingMetadata]
+    feature_channels: list[str]
     transform_name: str
     lookback_days: int
     prediction_horizon_days: int
@@ -97,6 +98,7 @@ class DatasetBundle:
             "test_first": test_timestamps[:limit],
             "test_last": test_timestamps[-limit:],
             "train_test_overlap": len(train_set & test_set),
+            "feature_channels": list(self.feature_channels),
             "test_is_later_than_train": bool(
                 not train_timestamps
                 or not test_timestamps

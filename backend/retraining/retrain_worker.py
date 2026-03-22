@@ -359,6 +359,7 @@ class RetrainWorker:
             "lookback_days": datasets.lookback_days,
             "prediction_horizon_days": datasets.prediction_horizon_days,
             "transform_name": datasets.transform_name,
+            "feature_channels": list(datasets.feature_channels),
             "dataset_summary": self._dataset_summary(
                 datasets,
                 self._evaluation_dataset(datasets, mode),
@@ -634,10 +635,14 @@ class SharedTrainingWorker:
         return on_epoch
 
     def _build_model(self, mode: str) -> BaseModel:
+        input_channels = len(resolve_feature_channels(self.config))
         if mode == "unified":
-            return UnifiedCNN()
+            return UnifiedCNN(in_channels=input_channels)
         if mode == "unified_with_embeddings":
-            return UnifiedCNNWithEmbeddings(num_stocks=len(self.stock_ids))
+            return UnifiedCNNWithEmbeddings(
+                num_stocks=len(self.stock_ids),
+                in_channels=input_channels,
+            )
         raise ValueError(f"Unsupported shared training mode '{mode}'.")
 
     def _load_trained_model(self, mode: str, checkpoint_path: Path) -> BaseModel:
@@ -683,6 +688,7 @@ class SharedTrainingWorker:
             "lookback_days": datasets.lookback_days,
             "prediction_horizon_days": datasets.prediction_horizon_days,
             "transform_name": datasets.transform_name,
+            "feature_channels": list(datasets.feature_channels),
             "dataset_summary": self._dataset_summary(datasets, datasets.test_dataset),
             "history": [asdict(epoch_metrics) for epoch_metrics in training_run.history],
             "metrics": evaluation_report.as_dict(),
