@@ -22,6 +22,10 @@ MODEL_NOT_TRAINED_HINT = (
     "Trigger local training or run the Colab notebook to generate the checkpoint in "
     "model_store/."
 )
+MODEL_INCOMPATIBLE_HINT = (
+    "Retrain the model artifacts so they match the current backend config before "
+    "requesting predictions."
+)
 SUPPORTED_MODEL_MODES = {"per_stock", "unified", "unified_with_embeddings", "both"}
 
 
@@ -50,6 +54,7 @@ class ModelRegistry:
         self.per_stock_dir = self._resolve_store_subdir(PER_STOCK_MODEL_DIR, "per_stock")
         self.unified_dir = self._resolve_store_subdir(UNIFIED_MODEL_DIR, "unified")
         self.scaler_dir = self._resolve_store_subdir(SCALER_STORE_DIR, "scalers")
+        self.report_dir = self.model_store_dir / "reports"
         self.map_location = map_location
         self.stock_ids = [stock["id"] for stock in app_config["active_stocks"]]
         self.stock_index = {stock_id: index for index, stock_id in enumerate(self.stock_ids)}
@@ -77,8 +82,38 @@ class ModelRegistry:
                 error=self.build_model_not_trained_response(),
             )
         model = self._instantiate_model(mode)
-        state_dict = self._load_state_dict(artifact_path)
-        model.load_state_dict(state_dict)
+        try:
+            state_dict = self._load_state_dict(artifact_path)
+        except ValueError as exc:
+            return ModelLoadResult(
+                mode=mode,
+                model=None,
+                artifact_path=artifact_path,
+                error=self.build_invalid_model_artifact_response(str(exc)),
+            )
+
+        compatibility_error = self._validate_checkpoint_compatibility(
+            mode,
+            stock_id,
+            state_dict,
+        )
+        if compatibility_error is not None:
+            return ModelLoadResult(
+                mode=mode,
+                model=None,
+                artifact_path=artifact_path,
+                error=compatibility_error,
+            )
+
+        try:
+            model.load_state_dict(state_dict)
+        except RuntimeError as exc:
+            return ModelLoadResult(
+                mode=mode,
+                model=None,
+                artifact_path=artifact_path,
+                error=self.build_incompatible_model_response(str(exc)),
+            )
         model.eval()
         return ModelLoadResult(mode=mode, model=model, artifact_path=artifact_path)
 
@@ -107,6 +142,20 @@ class ModelRegistry:
         return {
             "error": "model_not_trained",
             "hint": MODEL_NOT_TRAINED_HINT,
+        }
+
+    def build_invalid_model_artifact_response(self, reason: str) -> dict[str, str]:
+        return {
+            "error": "invalid_model_artifact",
+            "detail": reason,
+            "hint": MODEL_INCOMPATIBLE_HINT,
+        }
+
+    def build_incompatible_model_response(self, reason: str) -> dict[str, str]:
+        return {
+            "error": "incompatible_model_artifact",
+            "detail": reason,
+            "hint": MODEL_INCOMPATIBLE_HINT,
         }
 
     def _resolve_model_mode(self) -> str:
@@ -157,6 +206,82 @@ class ModelRegistry:
         if isinstance(loaded_artifact, dict):
             return loaded_artifact
         raise ValueError(f"Unsupported model artifact format in '{artifact_path.name}'.")
+
+    def _validate_checkpoint_compatibility(
+        self,
+        mode: str,
+        stock_id: str,
+        state_dict: dict[str, torch.Tensor],
+    ) -> dict[str, str] | None:
+        report_channels = self._load_report_feature_channels(mode, stock_id)
+        if report_channels is not None and report_channels != self.feature_channels:
+            return self.build_incompatible_model_response(
+                "Checkpoint was trained with feature channels "
+                f"{report_channels}, but the current config expects {self.feature_channels}."
+            )
+
+        checkpoint_input_channels = self._extract_checkpoint_input_channels(state_dict)
+        if checkpoint_input_channels is not None and checkpoint_input_channels != self.input_channels:
+            return self.build_incompatible_model_response(
+                "Checkpoint expects "
+                f"{checkpoint_input_channels} input channel(s), but the current config provides "
+                f"{self.input_channels} channel(s): {self.feature_channels}."
+            )
+
+        if mode == "unified_with_embeddings":
+            checkpoint_stock_count = self._extract_checkpoint_stock_count(state_dict)
+            if checkpoint_stock_count is not None and checkpoint_stock_count != len(self.stock_ids):
+                return self.build_incompatible_model_response(
+                    "Checkpoint was trained for "
+                    f"{checkpoint_stock_count} stock embedding(s), but the current config has "
+                    f"{len(self.stock_ids)} active stock(s)."
+                )
+
+        return None
+
+    def _load_report_feature_channels(self, mode: str, stock_id: str) -> list[str] | None:
+        report_path = self._resolve_report_path(mode, stock_id)
+        if not report_path.exists():
+            return None
+        try:
+            import json
+
+            payload = json.loads(report_path.read_text(encoding="utf-8"))
+        except Exception:
+            return None
+        feature_channels = payload.get("feature_channels") if isinstance(payload, dict) else None
+        if isinstance(feature_channels, list) and all(
+            isinstance(channel, str) for channel in feature_channels
+        ):
+            return list(feature_channels)
+        return None
+
+    def _resolve_report_path(self, mode: str, stock_id: str) -> Path:
+        if mode == "per_stock":
+            return self.report_dir / f"{stock_id}_training_report.json"
+        if mode == "unified":
+            return self.report_dir / "unified_training_report.json"
+        if mode == "unified_with_embeddings":
+            return self.report_dir / "unified_with_embeddings_training_report.json"
+        raise ValueError(f"Unsupported model mode '{mode}'.")
+
+    def _extract_checkpoint_input_channels(
+        self,
+        state_dict: dict[str, torch.Tensor],
+    ) -> int | None:
+        feature_weight = state_dict.get("features.0.weight")
+        if isinstance(feature_weight, torch.Tensor) and feature_weight.ndim >= 2:
+            return int(feature_weight.shape[1])
+        return None
+
+    def _extract_checkpoint_stock_count(
+        self,
+        state_dict: dict[str, torch.Tensor],
+    ) -> int | None:
+        embedding_weight = state_dict.get("stock_embedding.weight")
+        if isinstance(embedding_weight, torch.Tensor) and embedding_weight.ndim >= 1:
+            return int(embedding_weight.shape[0])
+        return None
 
     def _require_stock(self, stock_id: str) -> None:
         if stock_id not in self.stock_index:

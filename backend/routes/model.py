@@ -51,7 +51,7 @@ def predict(
     configured_mode = registry.get_prediction_mode()
     load_result = resolve_prediction_load_result(registry, stock_id, mode)
     if not load_result.is_available or load_result.model is None:
-        raise_model_not_trained_error(stock_id, load_result)
+        raise_model_load_error(stock_id, load_result)
     scaler = load_scaler_or_error(registry, stock_id)
     latest_window = build_latest_input_window(
         stock,
@@ -110,16 +110,12 @@ def compare(stock_id: str, request: Request) -> ModelCompareResponse:
         metrics_summary = build_metrics_summary(report_payload)
         variant_error = None
         if not load_result.is_available:
-            error_payload = load_result.error or registry.build_model_not_trained_response()
-            variant_error = APIErrorResponse(
-                error=str(error_payload["error"]),
-                detail=(
-                    f"Model weights for '{stock['id']}' are not available for mode '{mode}'."
-                ),
-                hint=error_payload.get("hint"),
-                artifact_path=str(load_result.artifact_path),
-            )
-        if metrics_summary.mse is not None and (best_mse is None or metrics_summary.mse < best_mse):
+            variant_error = build_model_load_error_response(stock["id"], load_result)
+        if (
+            load_result.is_available
+            and metrics_summary.mse is not None
+            and (best_mse is None or metrics_summary.mse < best_mse)
+        ):
             best_mse = metrics_summary.mse
             best_mode = mode
         variants.append(
@@ -134,7 +130,7 @@ def compare(stock_id: str, request: Request) -> ModelCompareResponse:
         )
     available_modes = [variant.mode for variant in variants if variant.available]
     if not available_modes:
-        raise_model_not_trained_error(stock["id"], registry.load_prediction_model(stock["id"]))
+        raise_model_load_error(stock["id"], registry.load_prediction_model(stock["id"]))
     return ModelCompareResponse(
         stock_id=stock["id"],
         configured_prediction_mode=configured_prediction_mode,
@@ -364,14 +360,38 @@ def resolve_prediction_target_at(
     return target_datetime.isoformat()
 
 
-def raise_model_not_trained_error(stock_id: str, load_result: ModelLoadResult) -> None:
+def build_model_load_error_response(
+    stock_id: str,
+    load_result: ModelLoadResult,
+) -> APIErrorResponse:
     error_payload = load_result.error or {"error": "model_not_trained", "hint": None}
-    raise_structured_http_error(
-        503,
-        str(error_payload["error"]),
-        f"Prediction model for '{stock_id}' is not trained yet.",
+    error_code = str(error_payload["error"])
+    detail = error_payload.get("detail")
+    if detail is None:
+        if error_code == "model_not_trained":
+            detail = f"Prediction model for '{stock_id}' is not trained yet."
+        elif error_code == "incompatible_model_artifact":
+            detail = f"Prediction model artifact for '{stock_id}' is incompatible with the current config."
+        elif error_code == "invalid_model_artifact":
+            detail = f"Prediction model artifact for '{stock_id}' could not be loaded."
+        else:
+            detail = f"Prediction model for '{stock_id}' is currently unavailable."
+    return APIErrorResponse(
+        error=error_code,
+        detail=str(detail),
         hint=error_payload.get("hint"),
         artifact_path=str(load_result.artifact_path),
+    )
+
+
+def raise_model_load_error(stock_id: str, load_result: ModelLoadResult) -> None:
+    error_response = build_model_load_error_response(stock_id, load_result)
+    raise_structured_http_error(
+        503,
+        error_response.error,
+        error_response.detail,
+        hint=error_response.hint,
+        artifact_path=error_response.artifact_path,
     )
 
 
