@@ -15,6 +15,7 @@ from data.cache.data_cache import DataCache
 from routes.api_models import (
     APIErrorResponse,
     ColabArtifactImportResponse,
+    CompleteArtifactImportResponse,
     FeatureAblationImportResponse,
     FeatureAblationEntryResponse,
     FeatureAblationReportResponse,
@@ -28,6 +29,7 @@ from routes.api_models import (
 )
 from routes.utils import load_json_file, raise_structured_http_error, require_stock
 from training.colab_artifact_importer import import_colab_artifact_bundle
+from training.complete_artifact_importer import import_complete_artifact_bundle
 from training.feature_ablation import build_feature_ablation_entries, run_feature_ablation
 from training.feature_ablation_importer import import_feature_ablation_bundle
 from training.feature_ablation_store import (
@@ -221,6 +223,96 @@ async def import_feature_ablation_artifacts(request: Request) -> FeatureAblation
             imported_reports=import_result.imported_reports,
             aggregate_report_path=import_result.aggregate_report_path,
             skipped_entries=import_result.skipped_entries,
+        )
+    finally:
+        if temp_bundle_path is not None:
+            with contextlib.suppress(OSError):
+                os.unlink(temp_bundle_path)
+
+
+@router.post(
+    "/import-complete-artifacts",
+    response_model=CompleteArtifactImportResponse,
+    responses=TRAINING_ERROR_RESPONSES,
+)
+async def import_complete_artifacts(request: Request) -> CompleteArtifactImportResponse:
+    app_env = _require_development_environment(request)
+    upload_filename = request.headers.get(
+        "x-upload-filename",
+        "chronospectra_complete_artifacts.zip",
+    ).strip()
+    if not upload_filename.lower().endswith(".zip"):
+        raise_structured_http_error(
+            422,
+            "invalid_complete_artifact_bundle",
+            "Uploaded complete artifact bundle must be a .zip file exported from Colab/Drive.",
+        )
+
+    temp_bundle_path: Path | None = None
+    total_bytes = 0
+    try:
+        with NamedTemporaryFile(
+            prefix="chronospectra-complete-upload-",
+            suffix=".zip",
+            delete=False,
+        ) as temp_file:
+            temp_bundle_path = Path(temp_file.name)
+            async for chunk in request.stream():
+                if not chunk:
+                    continue
+                total_bytes += len(chunk)
+                temp_file.write(chunk)
+
+        if temp_bundle_path is None or total_bytes == 0:
+            raise_structured_http_error(
+                422,
+                "invalid_complete_artifact_bundle",
+                "Uploaded bundle is empty.",
+            )
+
+        try:
+            import_result = import_complete_artifact_bundle(
+                temp_bundle_path,
+                request.app.state.config,
+            )
+        except ValueError as exc:
+            raise_structured_http_error(
+                422,
+                "invalid_complete_artifact_bundle",
+                "Complete artifact import failed.",
+                hint=str(exc),
+            )
+
+        cache_cleared = _clear_runtime_cache(request)
+        return CompleteArtifactImportResponse(
+            status="completed",
+            imported_at=import_result.imported_at,
+            app_env=app_env,
+            cache_cleared=cache_cleared,
+            training_import=ColabArtifactImportResponse(
+                status="completed",
+                imported_at=import_result.training_import.imported_at,
+                app_env=app_env,
+                cache_cleared=False,
+                imported_modes=import_result.training_import.imported_modes,
+                imported_stock_ids=import_result.training_import.imported_stock_ids,
+                imported_reports=import_result.training_import.imported_reports,
+                imported_checkpoints=import_result.training_import.imported_checkpoints,
+                imported_scalers=import_result.training_import.imported_scalers,
+                aggregate_report_path=import_result.training_import.aggregate_report_path,
+                skipped_entries=import_result.training_import.skipped_entries,
+            ),
+            feature_ablation_import=FeatureAblationImportResponse(
+                status="completed",
+                imported_at=import_result.feature_ablation_import.imported_at,
+                app_env=app_env,
+                cache_cleared=False,
+                imported_stock_ids=import_result.feature_ablation_import.imported_stock_ids,
+                imported_modes=import_result.feature_ablation_import.imported_modes,
+                imported_reports=import_result.feature_ablation_import.imported_reports,
+                aggregate_report_path=import_result.feature_ablation_import.aggregate_report_path,
+                skipped_entries=import_result.feature_ablation_import.skipped_entries,
+            ),
         )
     finally:
         if temp_bundle_path is not None:

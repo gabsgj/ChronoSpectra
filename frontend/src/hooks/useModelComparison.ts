@@ -20,27 +20,46 @@ const buildInitialState = (): ModelComparisonState => ({
   isRefreshing: false,
 })
 
+const modelComparisonCache = new Map<string, ModelCompareResponse>()
+const inFlightModelComparisonRequests = new Map<string, Promise<ModelCompareResponse>>()
+
 export const useModelComparison = (stockId: string) => {
   const [state, setState] = useState<ModelComparisonState>(buildInitialState)
   const [requestVersion, setRequestVersion] = useState(0)
 
   const fetchModelComparison = useEffectEvent(async (signal: AbortSignal) => {
+    const cachedComparison = modelComparisonCache.get(stockId) ?? null
+
     setState((currentState) => {
-      const hasMatchingData = currentState.data?.stock_id === stockId
+      const hasMatchingData =
+        currentState.data?.stock_id === stockId || cachedComparison !== null
       return {
-        data: hasMatchingData ? currentState.data : null,
-        isLoading: !hasMatchingData,
-        isRefreshing: hasMatchingData,
+        data: cachedComparison ?? (hasMatchingData ? currentState.data : null),
+        isLoading: !hasMatchingData && cachedComparison === null,
+        isRefreshing: hasMatchingData && cachedComparison === null,
         error: null,
         hint: null,
       }
     })
 
+    if (cachedComparison !== null) {
+      return
+    }
+
     try {
-      const data = await apiClient.getModelComparison(stockId, signal)
+      const request =
+        inFlightModelComparisonRequests.get(stockId) ??
+        apiClient.getModelComparison(stockId, signal)
+
+      if (!inFlightModelComparisonRequests.has(stockId)) {
+        inFlightModelComparisonRequests.set(stockId, request)
+      }
+
+      const data = await request
       if (signal.aborted) {
         return
       }
+      modelComparisonCache.set(stockId, data)
       setState({
         data,
         error: null,
@@ -63,6 +82,8 @@ export const useModelComparison = (stockId: string) => {
           isRefreshing: false,
         }
       })
+    } finally {
+      inFlightModelComparisonRequests.delete(stockId)
     }
   })
 
@@ -76,6 +97,8 @@ export const useModelComparison = (stockId: string) => {
     ...state,
     retry: () => {
       startTransition(() => {
+        modelComparisonCache.delete(stockId)
+        inFlightModelComparisonRequests.delete(stockId)
         setRequestVersion((currentValue) => currentValue + 1)
       })
     },

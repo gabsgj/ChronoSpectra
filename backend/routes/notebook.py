@@ -5,6 +5,7 @@ from typing import Literal
 from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse
 
+from training.complete_notebook_generator import CompleteNotebookGenerator
 from training.feature_ablation_notebook_generator import FeatureAblationNotebookGenerator
 from training.notebook_generator import NotebookGenerator
 
@@ -34,6 +35,20 @@ def generate_feature_ablation_notebook(
     mode: FeatureAblationNotebookMode = "per_stock",
 ) -> FileResponse:
     generator = FeatureAblationNotebookGenerator(request.app.state.config)
+    output_path = generator.generate(mode)
+    return FileResponse(
+        path=output_path,
+        media_type="application/x-ipynb+json",
+        filename=output_path.name,
+    )
+
+
+@router.get("/generate-complete")
+def generate_complete_notebook(
+    request: Request,
+    mode: NotebookMode = "per_stock",
+) -> FileResponse:
+    generator = CompleteNotebookGenerator(request.app.state.config)
     output_path = generator.generate(mode)
     return FileResponse(
         path=output_path,

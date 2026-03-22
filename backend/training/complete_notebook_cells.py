@@ -4,30 +4,34 @@ import json
 from textwrap import dedent
 from typing import Any
 
+from training.feature_ablation_notebook_cells import (
+    _feature_ablation_output_dir_source,
+    _run_feature_ablation_source,
+)
 from training.notebook_cells import (
     _code_cell,
     _config_source,
     _data_pipeline_source,
     _dependency_install_source,
-    _drive_export_source,
     _markdown_cell,
     _model_architecture_source,
+    _run_training_source,
     _training_loop_source,
 )
 
 
-def build_feature_ablation_notebook_cells(
+def build_complete_notebook_cells(
     app_config: dict[str, Any],
     mode: str,
 ) -> list[dict[str, Any]]:
     config_json = json.dumps(app_config, indent=2)
     return [
         _markdown_cell(
-            "ChronoSpectra Feature Ablation Notebook",
+            "ChronoSpectra Complete Workflow Notebook",
             (
-                f"This notebook was generated for `{mode}` mode. It trains a baseline and "
-                "channel-drop variants, saves reusable feature-ablation reports for every "
-                "active stock, and keeps the artifact layout compatible with the app importer."
+                f"This notebook was generated for `{mode}` mode. It combines the full "
+                "training workflow with reusable feature-ablation generation so one Colab "
+                "run can produce a complete artifact bundle for the app."
             ),
         ),
         _code_cell(_dependency_install_source()),
@@ -36,62 +40,98 @@ def build_feature_ablation_notebook_cells(
             "The full `stocks.json` payload is embedded below so the notebook can run in Colab without edits.",
         ),
         _code_cell(_config_source(config_json, mode)),
-        _code_cell(_feature_ablation_output_dir_source()),
         _markdown_cell(
             "Model Definitions",
-            "These definitions mirror the backend models so the feature-ablation training path uses the same architecture.",
+            "These classes mirror the backend model architecture so exported checkpoints stay load-compatible.",
         ),
         _code_cell(_model_architecture_source()),
         _markdown_cell(
             "Data Pipeline",
-            "This section builds the multi-channel spectrogram datasets that the ablation runs compare.",
+            "This section builds the configured multi-channel spectrogram datasets used by both training and feature ablation.",
         ),
         _code_cell(_data_pipeline_source()),
         _markdown_cell(
             "Training And Evaluation",
-            "These helpers handle time splits, training, metrics, and dataset summaries needed by the ablation reports.",
+            "These helpers handle time splits, GPU-aware training, metrics, checkpoint export, and scaler export.",
         ),
         _code_cell(_training_loop_source()),
         _markdown_cell(
-            "Run Feature Ablation",
-            "Execute this cell to build reusable feature-ablation reports for all active stocks in the selected mode. This can take several minutes because it retrains baseline and channel-drop variants.",
+            "Run Training",
+            "Execute this cell first. It writes checkpoints, scalers, and `training_report.json` into the training artifact folder.",
         ),
-        _code_cell(_run_feature_ablation_source(mode)),
+        _code_cell(_run_training_source(mode)),
         _markdown_cell(
-            "Export To Google Drive",
-            "Run this after the notebook finishes to copy the feature-ablation bundle to Drive for download and later import into the app.",
+            "Feature Ablation Output",
+            "This sets up a separate output folder so the training artifacts and feature-ablation artifacts can be bundled together cleanly.",
         ),
-        _code_cell(_drive_export_source()),
+        _code_cell(
+            _feature_ablation_output_dir_source(
+                output_dir_var="FEATURE_ABLATION_OUTPUT_DIR",
+                output_dir_name="chronospectra_feature_ablation_artifacts",
+                reports_dir_var="FEATURE_ABLATION_REPORTS_DIR",
+            )
+        ),
+        _markdown_cell(
+            "Run Feature Ablation",
+            "Execute this after training. It generates reusable per-stock feature-ablation reports for all active stocks. This stage retrains baseline and channel-drop variants, so it can take several minutes.",
+        ),
+        _code_cell(
+            _run_complete_ablation_source(mode)
+        ),
+        _markdown_cell(
+            "Export Complete Bundle To Google Drive",
+            "Run this final cell to copy both artifact folders into Drive. Download that folder as one zip, then import it through the development UI.",
+        ),
+        _code_cell(_complete_drive_export_source()),
     ]
 
 
-def _feature_ablation_output_dir_source(
-    output_dir_var: str = "OUTPUT_DIR",
-    output_dir_name: str = "chronospectra_feature_ablation_artifacts",
-    reports_dir_var: str = "REPORTS_DIR",
-) -> str:
-    return f"""
+def _complete_drive_export_source() -> str:
+    return """
+import shutil
 from pathlib import Path
 
-{output_dir_var} = Path("{output_dir_name}")
-{output_dir_var}.mkdir(exist_ok=True)
-{reports_dir_var} = {output_dir_var} / "reports"
-{reports_dir_var}.mkdir(exist_ok=True)
+try:
+    from google.colab import drive
+except ImportError:
+    print("google.colab is unavailable outside Colab; skipping Drive export.")
+else:
+    drive.mount("/content/drive")
+    drive_target = Path("/content/drive/MyDrive/ChronoSpectraArtifacts")
+    drive_target.mkdir(parents=True, exist_ok=True)
 
-print("Feature ablation output dir:", {output_dir_var})
+    export_directories = {
+        "training": OUTPUT_DIR,
+        "feature_ablation": FEATURE_ABLATION_OUTPUT_DIR,
+    }
+
+    for export_prefix, source_dir in export_directories.items():
+        if not source_dir.exists():
+            continue
+        for artifact_path in source_dir.rglob("*"):
+            if artifact_path.is_file():
+                relative_path = artifact_path.relative_to(source_dir)
+                destination_path = drive_target / export_prefix / relative_path
+                destination_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(artifact_path, destination_path)
+
+    print("Complete artifact bundle copied to", drive_target)
     """
 
 
-def _run_feature_ablation_source(
-    mode: str,
-    output_dir_var: str = "OUTPUT_DIR",
-    reports_dir_var: str = "REPORTS_DIR",
-) -> str:
+def _run_complete_ablation_source(mode: str) -> str:
+    if mode != "both":
+        return _run_feature_ablation_source(
+            mode,
+            output_dir_var="FEATURE_ABLATION_OUTPUT_DIR",
+            reports_dir_var="FEATURE_ABLATION_REPORTS_DIR",
+        )
+
     return dedent(
-        f"""
+        """
 from datetime import datetime, timezone
 
-NOTEBOOK_MODE = "{mode}"
+COMPLETE_ABLATION_MODES = ["per_stock", "unified_with_embeddings"]
 ORIGINAL_FEATURE_CHANNELS = list(FEATURE_CHANNEL_NAMES)
 
 
@@ -103,7 +143,7 @@ def build_channel_sets() -> list[tuple[str, list[str], str | None]]:
         ]
         if remaining_channels:
             channel_sets.append(
-                (f"minus_{{removed_channel}}", remaining_channels, removed_channel)
+                (f"minus_{removed_channel}", remaining_channels, removed_channel)
             )
     return channel_sets
 
@@ -115,7 +155,7 @@ def select_test_dataset_for_stock(mode_name: str, datasets: dict, stock_id: str)
         sample for sample in datasets["test"].samples if sample["stock_id"] == stock_id
     ]
     if not filtered_samples:
-        raise ValueError(f"No evaluation samples found for {{stock_id}}.")
+        raise ValueError(f"No evaluation samples found for {stock_id}.")
     return SpectrogramDataset(filtered_samples)
 
 
@@ -129,7 +169,7 @@ def build_report_entries(results: list[dict]) -> list[dict]:
         metrics = result["metrics"]
         is_baseline = result["removed_channel"] is None
         entries.append(
-            {{
+            {
                 "label": result["label"],
                 "channels": list(result["channels"]),
                 "removed_channel": result["removed_channel"],
@@ -149,15 +189,15 @@ def build_report_entries(results: list[dict]) -> list[dict]:
                         metrics["directional_accuracy"] - baseline_metrics["directional_accuracy"]
                     )
                 ),
-            }}
+            }
         )
     return entries
 
 
 def write_feature_ablation_report(stock_id: str, mode_name: str, entries: list[dict]) -> dict:
     generated_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    report_path = {reports_dir_var} / f"{{stock_id}}_{{mode_name}}_feature_ablation_report.json"
-    payload = {{
+    report_path = FEATURE_ABLATION_REPORTS_DIR / f"{stock_id}_{mode_name}_feature_ablation_report.json"
+    payload = {
         "stock_id": stock_id,
         "mode": mode_name,
         "generated_at": generated_at,
@@ -165,7 +205,7 @@ def write_feature_ablation_report(stock_id: str, mode_name: str, entries: list[d
         "configured_channels": list(ORIGINAL_FEATURE_CHANNELS),
         "transform_name": CONFIG["signal_processing"]["default_transform"],
         "entries": entries,
-    }}
+    }
     report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return payload
 
@@ -177,18 +217,18 @@ def run_per_stock_feature_ablation() -> list[dict]:
         for label, channels, removed_channel in build_channel_sets():
             FEATURE_CHANNEL_NAMES[:] = list(channels)
             datasets = build_per_stock_bundle(stock_config, stock_index)
-            checkpoint_path = {output_dir_var} / f"{{stock_config['id']}}_{{NOTEBOOK_MODE}}_{{label}}.pth"
+            checkpoint_path = FEATURE_ABLATION_OUTPUT_DIR / f"{stock_config['id']}_per_stock_{label}.pth"
             model = create_model("per_stock", num_stocks=len(ACTIVE_STOCKS))
             train_model(model, datasets, "per_stock", checkpoint_path)
             best_model = load_trained_model("per_stock", len(ACTIVE_STOCKS), checkpoint_path)
             metrics = evaluate_model(best_model, datasets["test"], datasets["scalers"], "per_stock")
             stock_results.append(
-                {{
+                {
                     "label": label,
                     "channels": list(channels),
                     "removed_channel": removed_channel,
                     "metrics": metrics,
-                }}
+                }
             )
         reports.append(
             write_feature_ablation_report(
@@ -201,15 +241,15 @@ def run_per_stock_feature_ablation() -> list[dict]:
 
 
 def run_unified_feature_ablation(mode_name: str) -> list[dict]:
-    per_stock_results = {{
+    per_stock_results = {
         stock_config["id"]: []
         for stock_config in ACTIVE_STOCKS
-    }}
+    }
 
     for label, channels, removed_channel in build_channel_sets():
         FEATURE_CHANNEL_NAMES[:] = list(channels)
         datasets = build_unified_bundle(ACTIVE_STOCKS)
-        checkpoint_path = {output_dir_var} / f"{{mode_name}}_{{label}}.pth"
+        checkpoint_path = FEATURE_ABLATION_OUTPUT_DIR / f"{mode_name}_{label}.pth"
         model = create_model(mode_name, num_stocks=len(ACTIVE_STOCKS))
         train_model(model, datasets, mode_name, checkpoint_path)
         best_model = load_trained_model(mode_name, len(ACTIVE_STOCKS), checkpoint_path)
@@ -227,12 +267,12 @@ def run_unified_feature_ablation(mode_name: str) -> list[dict]:
                 mode_name,
             )
             per_stock_results[stock_config["id"]].append(
-                {{
+                {
                     "label": label,
                     "channels": list(channels),
                     "removed_channel": removed_channel,
                     "metrics": metrics,
-                }}
+                }
             )
 
     return [
@@ -245,20 +285,22 @@ def run_unified_feature_ablation(mode_name: str) -> list[dict]:
     ]
 
 
-if NOTEBOOK_MODE == "per_stock":
-    feature_ablation_reports = run_per_stock_feature_ablation()
-else:
-    feature_ablation_reports = run_unified_feature_ablation(NOTEBOOK_MODE)
+feature_ablation_reports = []
+for ablation_mode in COMPLETE_ABLATION_MODES:
+    if ablation_mode == "per_stock":
+        feature_ablation_reports.extend(run_per_stock_feature_ablation())
+    else:
+        feature_ablation_reports.extend(run_unified_feature_ablation(ablation_mode))
 
 FEATURE_CHANNEL_NAMES[:] = list(ORIGINAL_FEATURE_CHANNELS)
 
-aggregate_report_path = {output_dir_var} / "feature_ablation_report.json"
+aggregate_report_path = FEATURE_ABLATION_OUTPUT_DIR / "feature_ablation_report.json"
 aggregate_report_path.write_text(
     json.dumps(feature_ablation_reports, indent=2),
     encoding="utf-8",
 )
 
-print("Feature ablation complete. Aggregate report written to", aggregate_report_path)
+print("Complete feature ablation finished. Aggregate report written to", aggregate_report_path)
 print("Stored reports:", len(feature_ablation_reports))
 feature_ablation_reports
         """

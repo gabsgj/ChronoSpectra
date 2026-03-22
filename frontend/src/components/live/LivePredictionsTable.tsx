@@ -1,7 +1,10 @@
+import { useMemo } from 'react'
+
 import type { LivePredictionPoint } from '../../types'
 
 interface LivePredictionsTableProps {
   points: LivePredictionPoint[]
+  sourceLabel?: string
 }
 
 const formatCurrency = (value: number) => {
@@ -14,8 +17,11 @@ const formatCurrency = (value: number) => {
 
 export const LivePredictionsTable = ({
   points,
+  sourceLabel = 'Most recent available prediction records, newest first.',
 }: LivePredictionsTableProps) => {
-  const rows = [...points].reverse()
+  const rows = useMemo(() => {
+    return [...points].reverse().slice(0, 10)
+  }, [points])
 
   return (
     <section className="card-surface overflow-hidden p-5">
@@ -23,7 +29,7 @@ export const LivePredictionsTable = ({
         <div>
           <p className="eyebrow">Last 10 Predictions</p>
           <p className="mt-2 text-sm leading-6 text-muted">
-            Most recent streamed prediction records, newest first.
+            {sourceLabel}
           </p>
         </div>
         <p className="text-sm text-muted">{rows.length} rows</p>
@@ -31,7 +37,7 @@ export const LivePredictionsTable = ({
 
       {rows.length === 0 ? (
         <div className="mt-5 flex min-h-[14rem] items-center justify-center rounded-[20px] border border-dashed border-stroke/70 text-sm text-muted">
-          Waiting for live stream records...
+          Waiting for prediction records...
         </div>
       ) : (
         <div className="mt-5 overflow-x-auto">

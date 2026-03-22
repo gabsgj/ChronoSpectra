@@ -153,13 +153,19 @@ const isVariantQueued = (
 }
 
 const resolveVariantStatus = ({
+  hasMetrics,
   isAvailable,
+  liveErrorDetail,
+  reportPath,
   latestResult,
   mode,
   runtime,
   stockId,
 }: {
+  hasMetrics: boolean
   isAvailable: boolean
+  liveErrorDetail: string | null
+  reportPath: string | null
   latestResult: TrainingResult | null
   mode: ModelVariantResponse['mode']
   runtime: TrainingRuntimeResponse | null | undefined
@@ -208,8 +214,18 @@ const resolveVariantStatus = ({
     }
   }
 
+  if (reportPath && hasMetrics) {
+    return {
+      detail:
+        liveErrorDetail ??
+        'Saved report metrics exist, but the checkpoint is not currently loadable.',
+      label: 'Report Only',
+      tone: 'amber' as const,
+    }
+  }
+
   return {
-    detail: 'No saved artifact is available for this mode yet.',
+    detail: liveErrorDetail ?? 'No saved artifact is available for this mode yet.',
     label: 'Missing',
     tone: 'amber' as const,
   }
@@ -422,7 +438,10 @@ const ModelComparisonContent = ({
           const metrics: ModelMetricsSummary | null | undefined = liveVariant?.metrics
           const isAvailable = liveVariant?.available ?? false
           const variantStatus = resolveVariantStatus({
+            hasMetrics: metrics !== null && metrics !== undefined,
             isAvailable,
+            liveErrorDetail: liveVariant?.error?.detail ?? null,
+            reportPath: liveVariant?.report_path ?? null,
             latestResult: latestTrainingResult,
             mode,
             runtime: trainingRuntime,
@@ -447,6 +466,12 @@ const ModelComparisonContent = ({
                 </span>
               </div>
               <p className="mt-4 text-sm leading-7 text-muted">{detail}</p>
+              {liveVariant?.error?.detail ? (
+                <p className="mt-3 text-sm leading-6 text-muted">
+                  {liveVariant.error.detail}
+                  {liveVariant.error.hint ? ` ${liveVariant.error.hint}` : ''}
+                </p>
+              ) : null}
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-[18px] border border-stroke/70 bg-card/70 p-4">
                   <p className="text-xs uppercase tracking-[0.18em] text-muted">MSE</p>

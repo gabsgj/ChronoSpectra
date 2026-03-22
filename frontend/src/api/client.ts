@@ -1,6 +1,7 @@
 import type {
   ApiErrorResponse,
   ColabArtifactImportResponse,
+  CompleteArtifactImportResponse,
   FeatureAblationImportResponse,
   FFTResponse,
   MarketDataResponse,
@@ -183,10 +184,11 @@ export const apiClient = {
   },
   getModelBacktest: (
     stockId: string,
-    options?: { limit?: number; signal?: AbortSignal },
+    options?: { limit?: number; mode?: VariantModelMode; signal?: AbortSignal },
   ) => {
     const query = buildSearchParams({
       limit: options?.limit,
+      mode: options?.mode,
     })
     const suffix = query ? `?${query}` : ''
     return requestJson<ModelBacktestResponse>(
@@ -221,6 +223,15 @@ export const apiClient = {
   importFeatureAblationBundle: (file: File) =>
     requestUploadJson<FeatureAblationImportResponse>(
       '/training/import-feature-ablation-artifacts',
+      file,
+      {
+        'Content-Type': file.type || 'application/zip',
+        'X-Upload-Filename': file.name,
+      },
+    ),
+  importCompleteArtifactBundle: (file: File) =>
+    requestUploadJson<CompleteArtifactImportResponse>(
+      '/training/import-complete-artifacts',
       file,
       {
         'Content-Type': file.type || 'application/zip',
@@ -292,6 +303,10 @@ export const apiClient = {
   downloadFeatureAblationNotebook: async (mode: VariantModelMode) => {
     const query = buildSearchParams({ mode })
     return requestBlob(`/notebook/generate-feature-ablation?${query}`)
+  },
+  downloadCompleteNotebook: async (mode: ModelMode) => {
+    const query = buildSearchParams({ mode })
+    return requestBlob(`/notebook/generate-complete?${query}`)
   },
   getFrequencySpectrum: (stockId: string, signal?: AbortSignal) =>
     requestJson<FFTResponse>(`/signal/fft/${stockId}`, { signal }),

@@ -128,6 +128,15 @@ class FeatureAblationImportResponse(BaseModel):
     skipped_entries: list[str] = []
 
 
+class CompleteArtifactImportResponse(BaseModel):
+    status: str
+    imported_at: str
+    app_env: str
+    cache_cleared: bool
+    training_import: ColabArtifactImportResponse
+    feature_ablation_import: FeatureAblationImportResponse
+
+
 class TrainingRuntimeResponse(BaseModel):
     run_id: str | None = None
     is_running: bool

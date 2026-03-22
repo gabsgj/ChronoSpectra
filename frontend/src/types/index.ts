@@ -396,6 +396,15 @@ export interface FeatureAblationImportResponse {
   skipped_entries: string[]
 }
 
+export interface CompleteArtifactImportResponse {
+  status: string
+  imported_at: string
+  app_env: string
+  cache_cleared: boolean
+  training_import: ColabArtifactImportResponse
+  feature_ablation_import: FeatureAblationImportResponse
+}
+
 export interface TrainingRuntimeResponse {
   run_id: string | null
   is_running: boolean

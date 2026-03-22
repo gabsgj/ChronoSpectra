@@ -149,30 +149,32 @@ def backtest(
     stock_id: str,
     request: Request,
     limit: int = Query(50, ge=1, le=500),
+    mode: str | None = Query(None),
 ) -> ModelBacktestResponse:
     stock = require_stock(request, stock_id)
-    report_payload = load_report_payload("per_stock", stock["id"])
+    resolved_mode = _resolve_backtest_mode(mode)
+    report_payload = load_report_payload(resolved_mode, stock["id"])
     history_payload = load_prediction_history_payload(stock["id"])
-    if not report_payload or not history_payload.get("predictions"):
+    raw_points = _select_backtest_points_for_mode(history_payload, resolved_mode)
+    if not report_payload or not raw_points:
         raise_structured_http_error(
             503,
             "model_not_trained",
-            f"No backtest artifacts are available yet for '{stock['id']}'.",
+            f"No backtest artifacts are available yet for '{stock['id']}' in '{resolved_mode}' mode.",
             hint=(
                 "Trigger retraining or run the training notebook to generate "
-                "report and prediction history artifacts."
+                "report and prediction history artifacts for this mode."
             ),
-            artifact_path=str(resolve_report_path("per_stock", stock["id"])),
+            artifact_path=str(resolve_report_path(resolved_mode, stock["id"])),
         )
     metrics_summary = build_metrics_summary(report_payload)
-    raw_points = list(history_payload["predictions"])
     selected_points = raw_points[-limit:]
     return ModelBacktestResponse(
         stock_id=stock["id"],
-        mode=str(report_payload.get("mode", "per_stock")),
+        mode=str(report_payload.get("mode", resolved_mode)),
         total_points=len(raw_points),
         returned_points=len(selected_points),
-        report_path=str(resolve_report_path("per_stock", stock["id"])),
+        report_path=str(resolve_report_path(resolved_mode, stock["id"])),
         history_path=str(resolve_history_path(stock["id"])),
         metrics=metrics_summary,
         points=[serialize_backtest_point(point) for point in selected_points],
@@ -282,6 +284,39 @@ def load_prediction_history_payload(stock_id: str) -> dict[str, Any]:
 
 def resolve_history_path(stock_id: str) -> Path:
     return PREDICTION_HISTORY_DIR / f"{stock_id}.json"
+
+
+def _resolve_backtest_mode(mode: str | None) -> str:
+    if mode is None:
+        return "per_stock"
+    normalized_mode = mode.strip().lower()
+    if normalized_mode not in SUPPORTED_VARIANT_MODES:
+        supported_values = ", ".join(sorted(SUPPORTED_VARIANT_MODES))
+        raise_structured_http_error(
+            422,
+            "invalid_model_mode",
+            f"Unsupported model mode '{mode}'.",
+            hint=f"Use one of: {supported_values}.",
+        )
+    return normalized_mode
+
+
+def _select_backtest_points_for_mode(
+    history_payload: dict[str, Any],
+    mode: str,
+) -> list[dict[str, Any]]:
+    raw_predictions = history_payload.get("predictions")
+    if not isinstance(raw_predictions, list):
+        return []
+    selected_points: list[dict[str, Any]] = []
+    for point in raw_predictions:
+        if not isinstance(point, dict):
+            continue
+        point_mode = str(point.get("mode", "per_stock")).strip().lower()
+        if point_mode != mode:
+            continue
+        selected_points.append(point)
+    return selected_points
 
 
 def build_metrics_summary(report_payload: dict[str, Any]) -> ModelMetricsSummary:

@@ -27,6 +27,7 @@ import { useRetrainingStatus } from '../hooks/useRetrainingStatus'
 import { useTrainingReportDetail } from '../hooks/useTrainingReportDetail'
 import type {
   ColabArtifactImportResponse,
+  CompleteArtifactImportResponse,
   FeatureAblationImportResponse,
   ModelMode,
   ThemeMode,
@@ -109,6 +110,7 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
   const [confirmingRetrain, setConfirmingRetrain] = useState(false)
   const [downloadingMode, setDownloadingMode] = useState<ModelMode | null>(null)
   const [downloadingAblationNotebook, setDownloadingAblationNotebook] = useState(false)
+  const [downloadingCompleteNotebook, setDownloadingCompleteNotebook] = useState(false)
   const [downloadMessage, setDownloadMessage] = useState<string | null>(null)
   const [downloadError, setDownloadError] = useState<string | null>(null)
   const [handledRunId, setHandledRunId] = useState<string | null>(null)
@@ -122,8 +124,14 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
   const [featureAblationImportError, setFeatureAblationImportError] = useState<string | null>(null)
   const [featureAblationImportHint, setFeatureAblationImportHint] = useState<string | null>(null)
   const [featureAblationImportResult, setFeatureAblationImportResult] = useState<FeatureAblationImportResponse | null>(null)
+  const [completeArtifactBundle, setCompleteArtifactBundle] = useState<File | null>(null)
+  const [completeArtifactImportLoading, setCompleteArtifactImportLoading] = useState(false)
+  const [completeArtifactImportError, setCompleteArtifactImportError] = useState<string | null>(null)
+  const [completeArtifactImportHint, setCompleteArtifactImportHint] = useState<string | null>(null)
+  const [completeArtifactImportResult, setCompleteArtifactImportResult] = useState<CompleteArtifactImportResponse | null>(null)
   const artifactInputRef = useRef<HTMLInputElement | null>(null)
   const featureAblationInputRef = useRef<HTMLInputElement | null>(null)
+  const completeArtifactInputRef = useRef<HTMLInputElement | null>(null)
 
   const retrainingEntries = useMemo(() => {
     return [...(retrainingLogs.data?.retrain_history ?? [])]
@@ -149,6 +157,7 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
   const ablationMode: VariantModelMode = appConfig.model_mode === 'both'
     ? 'per_stock'
     : appConfig.model_mode
+  const completeNotebookMode: ModelMode = appConfig.model_mode
   const featureAblation = useFeatureAblationReport(stock.id, ablationMode)
 
   const refreshSelectedReport = useEffectEvent(() => {
@@ -241,6 +250,34 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
     }
   }
 
+  const handleCompleteNotebookDownload = async () => {
+    setDownloadingCompleteNotebook(true)
+    setDownloadError(null)
+    setDownloadMessage(null)
+    try {
+      const response = await apiClient.downloadCompleteNotebook(completeNotebookMode)
+      const objectUrl = window.URL.createObjectURL(response.blob)
+      const anchor = document.createElement('a')
+      anchor.href = objectUrl
+      anchor.download = response.filename ?? `chronospectra_${completeNotebookMode}_complete.ipynb`
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      window.URL.revokeObjectURL(objectUrl)
+      setDownloadMessage(
+        `${response.filename ?? `chronospectra_${completeNotebookMode}_complete.ipynb`} downloaded.`,
+      )
+    } catch (error) {
+      const formattedError = formatApiError(
+        error,
+        'Unable to download the complete notebook.',
+      )
+      setDownloadError(formattedError.error)
+    } finally {
+      setDownloadingCompleteNotebook(false)
+    }
+  }
+
   const importColabArtifacts = async () => {
     if (!artifactBundle) {
       setArtifactImportError('Choose a Colab artifact zip before starting the import.')
@@ -306,6 +343,43 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
       setFeatureAblationImportHint(formattedError.hint)
     } finally {
       setFeatureAblationImportLoading(false)
+    }
+  }
+
+  const importCompleteArtifacts = async () => {
+    if (!completeArtifactBundle) {
+      setCompleteArtifactImportError(
+        'Choose a complete artifact zip before starting the import.',
+      )
+      setCompleteArtifactImportHint(null)
+      return
+    }
+    setCompleteArtifactImportLoading(true)
+    setCompleteArtifactImportError(null)
+    setCompleteArtifactImportHint(null)
+    try {
+      const result = await apiClient.importCompleteArtifactBundle(completeArtifactBundle)
+      setCompleteArtifactImportResult(result)
+      setCompleteArtifactBundle(null)
+      if (completeArtifactInputRef.current) {
+        completeArtifactInputRef.current.value = ''
+      }
+      trainingReports.retry()
+      reportDetail.retry()
+      retrainingLogs.retry()
+      retrainingStatus.retry()
+      featureAblation.retry()
+      setDownloadMessage('Complete artifact bundle imported and runtime cache cleared.')
+      setDownloadError(null)
+    } catch (error) {
+      const formattedError = formatApiError(
+        error,
+        'Unable to import the complete artifact bundle.',
+      )
+      setCompleteArtifactImportError(formattedError.error)
+      setCompleteArtifactImportHint(formattedError.hint)
+    } finally {
+      setCompleteArtifactImportLoading(false)
     }
   }
 
@@ -457,13 +531,24 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
             <button
               type="button"
               onClick={() => void handleFeatureAblationNotebookDownload()}
-              disabled={downloadingMode !== null || downloadingAblationNotebook}
+              disabled={downloadingMode !== null || downloadingAblationNotebook || downloadingCompleteNotebook}
               aria-label={`Download the ${ablationMode.replaceAll('_', ' ')} feature ablation notebook for all active stocks.`}
               className="rounded-full border border-amber/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-amber transition hover:bg-amber/10 disabled:cursor-wait disabled:opacity-60"
             >
               {downloadingAblationNotebook
                 ? `Downloading ${ablationMode.replaceAll('_', ' ')} ablation`
                 : `Download ${ablationMode.replaceAll('_', ' ')} ablation`}
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleCompleteNotebookDownload()}
+              disabled={downloadingMode !== null || downloadingAblationNotebook || downloadingCompleteNotebook}
+              aria-label={`Download the complete ${completeNotebookMode.replaceAll('_', ' ')} notebook with training and feature ablation.`}
+              className="rounded-full border border-teal/30 bg-teal/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-teal transition hover:bg-teal/20 disabled:cursor-wait disabled:opacity-60"
+            >
+              {downloadingCompleteNotebook
+                ? `Downloading ${completeNotebookMode.replaceAll('_', ' ')} complete`
+                : `Download ${completeNotebookMode.replaceAll('_', ' ')} complete`}
             </button>
           </div>
 
@@ -557,7 +642,41 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
             </span>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid gap-4 xl:grid-cols-3">
+            <article className="rounded-[22px] border border-stroke/70 bg-card/65 p-5">
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-ink">Complete workflow bundle</p>
+                <label className="block text-sm font-semibold text-ink" htmlFor="complete-artifact-bundle">
+                  Complete zip bundle
+                </label>
+                <input
+                  id="complete-artifact-bundle"
+                  ref={completeArtifactInputRef}
+                  type="file"
+                  accept=".zip,application/zip"
+                  onChange={(event) => {
+                    setCompleteArtifactImportError(null)
+                    setCompleteArtifactImportHint(null)
+                    setCompleteArtifactImportResult(null)
+                    setCompleteArtifactBundle(event.target.files?.[0] ?? null)
+                  }}
+                  className="block w-full rounded-[18px] border border-stroke/70 bg-card/70 px-4 py-3 text-sm text-muted file:mr-4 file:rounded-full file:border-0 file:bg-teal/10 file:px-4 file:py-2 file:text-xs file:font-semibold file:uppercase file:tracking-[0.18em] file:text-teal"
+                />
+                <p className="text-sm text-muted">
+                  Selected bundle: {completeArtifactBundle?.name ?? 'None'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void importCompleteArtifacts()}
+                  disabled={completeArtifactImportLoading}
+                  className="rounded-full border border-teal/30 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-teal transition hover:bg-teal/10 disabled:cursor-wait disabled:opacity-60"
+                  aria-label="Import the complete training and feature ablation bundle from the selected zip file."
+                >
+                  {completeArtifactImportLoading ? 'Importing complete bundle...' : 'Import complete zip'}
+                </button>
+              </div>
+            </article>
+
             <article className="rounded-[22px] border border-stroke/70 bg-card/65 p-5">
               <div className="space-y-3">
                 <p className="text-sm font-semibold text-ink">Training artifact bundle</p>
@@ -634,11 +753,47 @@ const TrainingContent = ({ stock, setStockId }: TrainingContentProps) => {
             </p>
           ) : null}
 
+          {completeArtifactImportError ? (
+            <p className="rounded-[18px] border border-amber/30 bg-amber/10 px-4 py-3 text-sm leading-6 text-muted">
+              {completeArtifactImportError}
+              {completeArtifactImportHint ? ` ${completeArtifactImportHint}` : ''}
+            </p>
+          ) : null}
+
           {featureAblationImportError ? (
             <p className="rounded-[18px] border border-amber/30 bg-amber/10 px-4 py-3 text-sm leading-6 text-muted">
               {featureAblationImportError}
               {featureAblationImportHint ? ` ${featureAblationImportHint}` : ''}
             </p>
+          ) : null}
+
+          {completeArtifactImportResult ? (
+            <div className="grid gap-4 rounded-[22px] border border-stroke/70 bg-card/65 p-5 md:grid-cols-2">
+              <div className="space-y-2 text-sm text-muted">
+                <p>Imported at: {formatTimestamp(completeArtifactImportResult.imported_at)}</p>
+                <p>Cache cleared: {completeArtifactImportResult.cache_cleared ? 'Yes' : 'No'}</p>
+                <p>
+                  Training modes: {completeArtifactImportResult.training_import.imported_modes.join(', ') || 'None'}
+                </p>
+                <p>
+                  Ablation modes: {completeArtifactImportResult.feature_ablation_import.imported_modes.join(', ') || 'None'}
+                </p>
+              </div>
+              <div className="space-y-2 text-sm text-muted">
+                <p>
+                  Training reports: {completeArtifactImportResult.training_import.imported_reports.length}
+                </p>
+                <p>
+                  Training checkpoints: {completeArtifactImportResult.training_import.imported_checkpoints.length}
+                </p>
+                <p>
+                  Training scalers: {completeArtifactImportResult.training_import.imported_scalers.length}
+                </p>
+                <p>
+                  Ablation reports: {completeArtifactImportResult.feature_ablation_import.imported_reports.length}
+                </p>
+              </div>
+            </div>
           ) : null}
 
           {artifactImportResult ? (

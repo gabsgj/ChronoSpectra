@@ -243,7 +243,9 @@ const LiveTestingContent = ({
   const theme = resolveTheme()
   const marketStatus = useMarketStatus(stock.exchange)
   const liveMarket = useLiveMarket(stock.id, selectedMode)
-  const backtest = useModelBacktest(stock.id, 90)
+  const resolvedMode: VariantModelMode =
+    selectedMode ?? (appConfig.model_mode === 'both' ? 'per_stock' : appConfig.model_mode)
+  const backtest = useModelBacktest(stock.id, 90, resolvedMode)
   const ablationMode: VariantModelMode = selectedMode ?? (
     appConfig.model_mode === 'both' ? 'per_stock' : appConfig.model_mode
   )
@@ -354,6 +356,12 @@ const LiveTestingContent = ({
     }
     return overlayPoints.at(-1) ?? null
   }, [liveMarket.snapshot, overlayPoints])
+  const predictionTablePoints = useMemo(() => {
+    if (liveMarket.history.length > 0) {
+      return liveMarket.history
+    }
+    return overlayPoints
+  }, [liveMarket.history, overlayPoints])
   const predictionMetrics = usePrediction(overlayPoints)
   const latestPredictionMode =
     liveMarket.snapshot?.prediction_mode ??
@@ -415,7 +423,7 @@ const LiveTestingContent = ({
             <p>Provider: {latestProvider}</p>
             <p>
               Prediction mode:{' '}
-              {selectedMode ? `${selectedMode} (forced)` : latestPredictionMode}
+              {selectedMode ? `${selectedMode} (forced)` : `${resolvedMode} (auto)`}
             </p>
             <p>
               {liveMarket.connectionState === 'reconnecting'
@@ -584,7 +592,14 @@ const LiveTestingContent = ({
         theme={theme}
       />
 
-      <LivePredictionsTable points={liveMarket.history} />
+      <LivePredictionsTable
+        points={predictionTablePoints}
+        sourceLabel={
+          liveMarket.history.length > 0
+            ? 'Most recent streamed prediction records, newest first.'
+            : 'Live stream is unavailable, so this table is showing the latest saved horizon overlay records instead.'
+        }
+      />
 
       <FeatureAblationReportPanel
         stockDisplayName={stock.display_name}
