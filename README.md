@@ -36,23 +36,24 @@ In practical terms, it is a full-stack application that takes historical market 
 
 ### Screenshots
 
-Replace these placeholders with your own screenshots.
+<img width="1900" height="1060" alt="Image" src="https://github.com/user-attachments/assets/4409165e-5acb-4ae3-a02f-5bae12ef9286" />
+<img width="1900" height="1060" alt="Image" src="https://github.com/user-attachments/assets/33ccb521-8ee8-4579-8fb8-e22112850bbb" />
+<img width="1900" height="1060" alt="Image" src="https://github.com/user-attachments/assets/c1d2e436-0741-48ba-a5d3-5b8b5f98527d" />
+<img width="1888" height="1054" alt="Image" src="https://github.com/user-attachments/assets/3265a487-0d97-4228-9f40-eb933fe20144" />
+<img width="1900" height="1060" alt="Image" src="https://github.com/user-attachments/assets/d0345cd8-545c-45cc-9d93-ac8be9ecff78" />
+<img width="1900" height="1060" alt="Image" src="https://github.com/user-attachments/assets/cb0648b1-810d-4128-8f96-9e1f90693f43" />
+<img width="1900" height="1060" alt="Image" src="https://github.com/user-attachments/assets/000a5458-718d-4c7b-9d45-e6346d485ca4" />
+<img width="1900" height="1060" alt="Image" src="https://github.com/user-attachments/assets/9e3b74d0-a6d4-4b14-a6ad-97bfcd265970" />
+<img width="1900" height="1060" alt="Image" src="https://github.com/user-attachments/assets/4c4da742-ca2b-4fc8-9855-bfa25164636b" />
+<img width="1462" height="1925" alt="Image" src="https://github.com/user-attachments/assets/dc2e9712-46f9-41be-9aff-7f298ae529d8" />
+<img width="1900" height="1060" alt="Image" src="https://github.com/user-attachments/assets/e4ee18c9-d956-4c73-aaff-5acf4220eb54" />
+<img width="1900" height="1060" alt="Image" src="https://github.com/user-attachments/assets/b0d7aa93-464c-4086-a293-a51f60b279f4" />
+<img width="1900" height="1060" alt="Image" src="https://github.com/user-attachments/assets/351856eb-aa1d-4ca9-9e27-287ef9a9aa6d" />
+<img width="1900" height="1060" alt="Image" src="https://github.com/user-attachments/assets/05312a82-5dfe-4a7e-bbe4-e97ca5986637" />
+<img width="1900" height="1060" alt="Image" src="https://github.com/user-attachments/assets/599c433a-1a03-4752-ad5b-d6d6e7231e29" />
+<img width="1900" height="1060" alt="Image" src="https://github.com/user-attachments/assets/2e663403-6d92-4ab4-959c-13fd945701d8" />
 
-```md
-![Dashboard](./docs/screenshots/dashboard.png)
-![Stock Detail](./docs/screenshots/stock-detail.png)
-![Signal Analysis](./docs/screenshots/signal-analysis.png)
-![Live Monitoring](./docs/screenshots/live-monitoring.png)
-![Model Comparison](./docs/screenshots/model-comparison.png)
-```
 
-Suggested screenshot sections:
-
-- App shell and navigation
-- Stock detail chart view
-- Signal analysis view with transform controls
-- Live page with stream updates
-- Model comparison or backtest report view
 
 ## What This Project Does
 
