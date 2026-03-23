@@ -163,33 +163,26 @@ export const useLiveMarket = (
       }))
     }
 
-    const ensurePredictionAvailability = async () => {
+    const openStream = async () => {
+      let streamUrl: string
       try {
-        await apiClient.getPrediction(
-          stockId,
-          {
-            mode: mode ?? undefined,
-            signal: availabilityController.signal,
-          },
-        )
-        if (availabilityController.signal.aborted) {
-          return false
-        }
-        return true
+        streamUrl = await apiClient.getLiveStreamUrl(stockId, mode)
       } catch (error) {
-        if (availabilityController.signal.aborted) {
-          return false
+        if (availabilityController.signal.aborted || !allowReconnect) {
+          return
         }
         const formattedError = formatApiError(
           error,
-          'Unable to prepare the live prediction stream.',
+          'Unable to resolve the live prediction stream endpoint.',
         )
         setTerminalError(formattedError.error, formattedError.hint)
-        return false
+        return
       }
-    }
 
-    const openStream = () => {
+      if (availabilityController.signal.aborted || !allowReconnect) {
+        return
+      }
+
       clearReconnectTimer()
       closeSource()
 
@@ -201,7 +194,7 @@ export const useLiveMarket = (
         reconnectAttempt,
       }))
 
-      source = new EventSource(apiClient.getLiveStreamUrl(stockId, mode))
+      source = new EventSource(streamUrl)
       source.onmessage = (messageEvent) => {
         const payload = apiClient.parseLiveEvent(messageEvent)
         const point = toPredictionPoint(payload)
@@ -245,7 +238,7 @@ export const useLiveMarket = (
             ...currentState,
             connectionState: 'error',
             error: 'The live stream stopped after 3 reconnect attempts.',
-            hint: 'Retry once the backend prediction stream is available again.',
+            hint: 'Retry after confirming the backend SSE endpoint is reachable, CORS allows this origin, and proxy buffering is disabled for live streams.',
             reconnectAttempt,
           }))
           allowReconnect = false
@@ -265,17 +258,13 @@ export const useLiveMarket = (
         }))
 
         clearReconnectTimer()
-        reconnectTimer = window.setTimeout(openStream, delay)
+        reconnectTimer = window.setTimeout(() => {
+          void openStream()
+        }, delay)
       }
     }
 
-    void (async () => {
-      const isReady = await ensurePredictionAvailability()
-      if (!isReady || !allowReconnect) {
-        return
-      }
-      openStream()
-    })()
+    void openStream()
 
     return () => {
       allowReconnect = false

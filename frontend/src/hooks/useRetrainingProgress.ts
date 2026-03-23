@@ -55,7 +55,8 @@ export const useRetrainingProgress = (stockId: string) => {
     }
 
     let closedByCompletion = false
-    const source = new EventSource(apiClient.getRetrainingProgressUrl(runId))
+    let cancelled = false
+    let source: EventSource | null = null
 
     const handleSnapshot = (messageEvent: MessageEvent<string>) => {
       const payload = apiClient.parseRetrainingProgressEvent(
@@ -90,40 +91,65 @@ export const useRetrainingProgress = (stockId: string) => {
         snapshot: payload,
         status: 'completed',
       }))
-      source.close()
+      source?.close()
     }
 
-    source.addEventListener('snapshot', handleSnapshot as EventListener)
-    source.addEventListener('completed', handleCompleted as EventListener)
+    void (async () => {
+      try {
+        const progressUrl = await apiClient.getRetrainingProgressUrl(runId)
+        if (cancelled) {
+          return
+        }
 
-    source.onmessage = (messageEvent) => {
-      const payload = apiClient.parseRetrainingProgressEvent(
-        messageEvent,
-      ) as RetrainingProgressEvent
-      if (payload.run_id && payload.run_id !== runId) {
-        return
+        source = new EventSource(progressUrl)
+        source.addEventListener('snapshot', handleSnapshot as EventListener)
+        source.addEventListener('completed', handleCompleted as EventListener)
+
+        source.onmessage = (messageEvent) => {
+          const payload = apiClient.parseRetrainingProgressEvent(
+            messageEvent,
+          ) as RetrainingProgressEvent
+          if (payload.run_id && payload.run_id !== runId) {
+            return
+          }
+          setState((currentState) => ({
+            ...currentState,
+            events: mergeEvents(currentState.events, payload),
+            status: payload.event === 'retraining_completed' ? 'completed' : 'running',
+          }))
+        }
+
+        source.onerror = () => {
+          if (closedByCompletion) {
+            return
+          }
+          setState((currentState) => ({
+            ...currentState,
+            error: 'The retraining progress stream disconnected before completion.',
+            status: currentState.status === 'completed' ? 'completed' : 'error',
+          }))
+          source?.close()
+        }
+      } catch (error) {
+        if (cancelled) {
+          return
+        }
+        const formattedError = formatApiError(
+          error,
+          'Unable to open the retraining progress stream.',
+        )
+        setState((currentState) => ({
+          ...currentState,
+          error: formattedError.error,
+          hint: formattedError.hint,
+          status: 'error',
+        }))
       }
-      setState((currentState) => ({
-        ...currentState,
-        events: mergeEvents(currentState.events, payload),
-        status: payload.event === 'retraining_completed' ? 'completed' : 'running',
-      }))
-    }
-
-    source.onerror = () => {
-      if (closedByCompletion) {
-        return
-      }
-      setState((currentState) => ({
-        ...currentState,
-        error: 'The retraining progress stream disconnected before completion.',
-        status: currentState.status === 'completed' ? 'completed' : 'error',
-      }))
-      source.close()
-    }
+    })()
 
     return () => {
-      source.close()
+      cancelled = true
+      source?.close()
     }
   }, [state.runInfo?.run_id])
 

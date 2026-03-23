@@ -10,6 +10,7 @@ import numpy as np
 import torch
 from fastapi import APIRouter, Query, Request
 
+from data.base_fetcher import PricePoint
 from data.cache.data_cache import DataCache
 from models.model_registry import ModelLoadResult, ModelRegistry
 from routes.api_models import (
@@ -46,6 +47,15 @@ def predict(
     request: Request,
     mode: str | None = Query(None),
 ) -> PredictionResponse:
+    return build_prediction_response(stock_id, request, mode=mode)
+
+
+def build_prediction_response(
+    stock_id: str,
+    request: Request,
+    mode: str | None = None,
+    live_price: PricePoint | None = None,
+) -> PredictionResponse:
     stock = require_stock(request, stock_id)
     registry = ModelRegistry(request.app.state.config)
     configured_mode = registry.get_prediction_mode()
@@ -57,6 +67,7 @@ def predict(
         stock,
         request.app.state.config,
         request.app.state.data_cache,
+        live_price=live_price,
     )
     prediction_tensor = run_model_prediction(
         load_result,
@@ -212,10 +223,11 @@ def build_latest_input_window(
     stock: dict[str, Any],
     app_config: dict[str, Any],
     cache: DataCache,
+    live_price: PricePoint | None = None,
 ) -> dict[str, Any]:
     builder = DatasetBuilder(app_config, cache)
     try:
-        return builder.build_latest_input_window(stock)
+        return builder.build_latest_input_window(stock, live_price=live_price)
     except ValueError as exc:
         raise_structured_http_error(
             503,

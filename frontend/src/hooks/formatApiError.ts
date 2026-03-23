@@ -25,7 +25,7 @@ export const formatApiError = (
     if (isNetworkLayerFailure) {
       return {
         error: error.message,
-        hint: 'The browser could not reach the backend. Verify VITE_BACKEND_URL uses https, backend CORS FRONTEND_URL matches this site origin exactly, and the backend health endpoint is reachable.',
+        hint: 'The browser could not reach the backend. Verify the runtime API base URL resolver points to the backend origin, backend CORS allows this site origin, and either the direct backend health endpoint or the same-origin `/api` proxy path is reachable.',
       }
     }
 

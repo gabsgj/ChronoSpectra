@@ -1,16 +1,6 @@
-from training.dataset_builder import DatasetBuilder
-from training.evaluator import Evaluator
-from training.notebook_generator import NotebookGenerator
-from training.train_loop import TrainLoop
-from training.training_types import (
-    DatasetBundle,
-    EpochMetrics,
-    EvaluationReport,
-    ScalingMetadata,
-    SpectrogramDataset,
-    TrainingRunResult,
-    TrainingSampleRecord,
-)
+from __future__ import annotations
+
+from importlib import import_module
 
 __all__ = [
     "DatasetBuilder",
@@ -25,3 +15,25 @@ __all__ = [
     "TrainingRunResult",
     "TrainingSampleRecord",
 ]
+
+_MODULE_BY_EXPORT = {
+    "DatasetBuilder": "dataset_builder",
+    "DatasetBundle": "training_types",
+    "EpochMetrics": "training_types",
+    "EvaluationReport": "training_types",
+    "Evaluator": "evaluator",
+    "NotebookGenerator": "notebook_generator",
+    "ScalingMetadata": "training_types",
+    "SpectrogramDataset": "training_types",
+    "TrainLoop": "train_loop",
+    "TrainingRunResult": "training_types",
+    "TrainingSampleRecord": "training_types",
+}
+
+
+def __getattr__(name: str):
+    module_name = _MODULE_BY_EXPORT.get(name)
+    if module_name is None:
+        raise AttributeError(f"module 'training' has no attribute '{name}'")
+    module = import_module(f"training.{module_name}")
+    return getattr(module, name)

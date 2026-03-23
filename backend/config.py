@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 ConfigDict = dict[str, Any]
 
@@ -62,6 +64,9 @@ def load_runtime_environment(base_dir: str | Path | None = None) -> ConfigDict:
             env_payload[key] = os.environ[key]
     env_payload["ALLOWED_FRONTEND_ORIGINS"] = _split_csv(
         str(env_payload.get("FRONTEND_URL", ""))
+    )
+    env_payload["ALLOWED_FRONTEND_ORIGIN_REGEX"] = resolve_allowed_frontend_origin_regex(
+        env_payload
     )
     return env_payload
 
@@ -141,6 +146,34 @@ def _strip_wrapping_quotes(value: str) -> str:
 def _split_csv(value: str) -> list[str]:
     origins = [entry.strip().rstrip("/") for entry in value.split(",") if entry.strip()]
     return origins or [str(DEFAULT_ENVIRONMENT["FRONTEND_URL"])]
+
+
+def resolve_allowed_frontend_origin_regex(env_payload: ConfigDict) -> str | None:
+    app_env = str(env_payload.get("APP_ENV", "development")).strip().lower()
+    frontend_url = str(env_payload.get("FRONTEND_URL", "")).strip()
+    if app_env == "production" or not frontend_url:
+        return None
+
+    parsed_frontend_url = urlparse(frontend_url)
+    frontend_host = (parsed_frontend_url.hostname or "").strip().lower()
+    if frontend_host not in {"localhost", "127.0.0.1", "0.0.0.0", "::1"}:
+        return None
+
+    frontend_scheme = re.escape(parsed_frontend_url.scheme or "http")
+    frontend_port = f":{parsed_frontend_url.port}" if parsed_frontend_url.port else ""
+    port_pattern = re.escape(frontend_port) if frontend_port else r"(?::\d+)?"
+    lan_host_pattern = (
+        r"(?:"
+        r"localhost|"
+        r"0\.0\.0\.0|"
+        r"\[::1\]|"
+        r"127(?:\.\d{1,3}){3}|"
+        r"10(?:\.\d{1,3}){3}|"
+        r"192\.168(?:\.\d{1,3}){2}|"
+        r"172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2}"
+        r")"
+    )
+    return rf"^{frontend_scheme}://{lan_host_pattern}{port_pattern}$"
 
 
 def _merge_defaults(defaults: ConfigDict, value: Any) -> ConfigDict:

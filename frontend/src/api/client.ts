@@ -25,6 +25,7 @@ import type {
   TransformName,
   VariantModelMode,
 } from '../types'
+import { buildApiBaseUrlCandidates } from './baseUrl'
 
 export class ApiClientError extends Error {
   status: number
@@ -47,20 +48,89 @@ export class ApiClientError extends Error {
   }
 }
 
-const resolveApiBaseUrl = () => {
-  const configuredUrl =
-    import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_BASE_URL
-  if (configuredUrl) {
-    const normalizedConfiguredUrl = configuredUrl.replace(/\/$/, '')
-    return normalizedConfiguredUrl
-  }
-  if (typeof window !== 'undefined') {
-    return window.location.origin.replace(/\/$/, '')
-  }
-  throw new Error('VITE_BACKEND_URL is not configured.')
+let resolvedApiBaseUrl: string | null = null
+let apiBaseUrlResolution: Promise<string> | null = null
+
+const resolveConfiguredApiBaseUrl = () => {
+  return import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_BASE_URL || null
 }
 
-export const API_BASE_URL = resolveApiBaseUrl()
+const buildLocationSnapshot = () => {
+  if (typeof window === 'undefined') {
+    return undefined
+  }
+  return {
+    origin: window.location.origin.replace(/\/$/, ''),
+    protocol: window.location.protocol,
+    hostname: window.location.hostname,
+  }
+}
+
+const probeApiBaseUrl = async (candidateBaseUrl: string) => {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => {
+    controller.abort()
+  }, 1500)
+
+  try {
+    const response = await fetch(`${candidateBaseUrl}/health`, {
+      cache: 'no-store',
+      headers: {
+        Accept: 'application/json',
+      },
+      signal: controller.signal,
+    })
+    if (!response.ok) {
+      return false
+    }
+
+    const contentType = response.headers.get('content-type')?.toLowerCase() ?? ''
+    if (!contentType.includes('application/json')) {
+      return false
+    }
+
+    const payload = (await response.json()) as { status?: unknown }
+    return payload.status === 'ok'
+  } catch {
+    return false
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
+export const resolveApiBaseUrl = async () => {
+  if (resolvedApiBaseUrl) {
+    return resolvedApiBaseUrl
+  }
+  if (apiBaseUrlResolution) {
+    return apiBaseUrlResolution
+  }
+
+  apiBaseUrlResolution = (async () => {
+    const candidates = buildApiBaseUrlCandidates({
+      configuredUrl: resolveConfiguredApiBaseUrl(),
+      locationSnapshot: buildLocationSnapshot(),
+    })
+    if (candidates.length === 0) {
+      throw new Error('VITE_BACKEND_URL is not configured.')
+    }
+
+    for (const candidate of candidates) {
+      if (await probeApiBaseUrl(candidate)) {
+        return candidate
+      }
+    }
+
+    return candidates[0]
+  })()
+
+  try {
+    resolvedApiBaseUrl = await apiBaseUrlResolution
+    return resolvedApiBaseUrl
+  } finally {
+    apiBaseUrlResolution = null
+  }
+}
 
 const parseErrorResponse = async (response: Response) => {
   try {
@@ -72,7 +142,8 @@ const parseErrorResponse = async (response: Response) => {
 }
 
 const requestJson = async <T>(path: string, init?: RequestInit): Promise<T> => {
-  const response = await fetch(`${API_BASE_URL}${path}`, init)
+  const apiBaseUrl = await resolveApiBaseUrl()
+  const response = await fetch(`${apiBaseUrl}${path}`, init)
   if (!response.ok) {
     const detail = await parseErrorResponse(response)
     throw new ApiClientError(
@@ -93,7 +164,7 @@ const requestJson = async <T>(path: string, init?: RequestInit): Promise<T> => {
       {
         status: response.status,
         errorCode: null,
-        hint: `Verify VITE_BACKEND_URL points to your backend origin (current: ${API_BASE_URL}) and not to the frontend origin.`,
+        hint: `Verify the runtime API base URL resolves to your backend origin (current: ${apiBaseUrl}) and not to the frontend document origin.`,
       },
     )
   }
@@ -103,7 +174,8 @@ const requestBlob = async (
   path: string,
   init?: RequestInit,
 ) => {
-  const response = await fetch(`${API_BASE_URL}${path}`, init)
+  const apiBaseUrl = await resolveApiBaseUrl()
+  const response = await fetch(`${apiBaseUrl}${path}`, init)
   if (!response.ok) {
     const detail = await parseErrorResponse(response)
     throw new ApiClientError(
@@ -129,7 +201,8 @@ const requestUploadJson = async <T>(
   body: BodyInit,
   headers?: HeadersInit,
 ): Promise<T> => {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const apiBaseUrl = await resolveApiBaseUrl()
+  const response = await fetch(`${apiBaseUrl}${path}`, {
     method: 'POST',
     body,
     headers,
@@ -284,10 +357,12 @@ export const apiClient = {
       method: 'POST',
     }),
   getRetrainingProgressUrl: (runId?: string) => {
-    if (!runId) {
-      return `${API_BASE_URL}/retraining/progress`
-    }
-    return `${API_BASE_URL}/retraining/progress?${buildSearchParams({ run_id: runId })}`
+    return resolveApiBaseUrl().then((apiBaseUrl) => {
+      if (!runId) {
+        return `${apiBaseUrl}/retraining/progress`
+      }
+      return `${apiBaseUrl}/retraining/progress?${buildSearchParams({ run_id: runId })}`
+    })
   },
   parseRetrainingProgressEvent: (
     rawEvent: MessageEvent<string>,
@@ -331,9 +406,11 @@ export const apiClient = {
     )
   },
   getLiveStreamUrl: (stockId: string, mode?: VariantModelMode | null) => {
-    const query = buildSearchParams({ mode: mode ?? undefined })
-    const suffix = query ? `?${query}` : ''
-    return `${API_BASE_URL}/live/stream/${stockId}${suffix}`
+    return resolveApiBaseUrl().then((apiBaseUrl) => {
+      const query = buildSearchParams({ mode: mode ?? undefined })
+      const suffix = query ? `?${query}` : ''
+      return `${apiBaseUrl}/live/stream/${stockId}${suffix}`
+    })
   },
   parseLiveEvent: (rawEvent: MessageEvent<string>): LiveMarketEvent => {
     return JSON.parse(rawEvent.data) as LiveMarketEvent

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 import numpy as np
 
 from config import find_stock
+from data.base_fetcher import PricePoint
 from data.feature_series_loader import FeatureSeries, FeatureSeriesLoader
 from data.cache.data_cache import DataCache
 from signal_processing.transforms import get_transform
@@ -194,8 +196,14 @@ class DatasetBuilder:
             label_timestamp=timestamps[label_index],
         )
 
-    def build_latest_input_window(self, stock_config: dict[str, Any]) -> dict[str, Any]:
+    def build_latest_input_window(
+        self,
+        stock_config: dict[str, Any],
+        live_price: PricePoint | None = None,
+    ) -> dict[str, Any]:
         feature_series = self._load_feature_series(stock_config)
+        if live_price is not None:
+            feature_series = self._apply_live_price(feature_series, live_price)
         lookback_days = self._resolve_lookback_days()
         if len(feature_series.timestamps) < lookback_days:
             raise ValueError(
@@ -220,6 +228,63 @@ class DatasetBuilder:
             "signal_window_length": lookback_days,
             "feature_channels": list(self.feature_channels),
         }
+
+    def _apply_live_price(
+        self,
+        feature_series: FeatureSeries,
+        live_price: PricePoint,
+    ) -> FeatureSeries:
+        try:
+            live_timestamp = datetime.fromisoformat(live_price.timestamp)
+            latest_feature_timestamp = datetime.fromisoformat(feature_series.timestamps[-1])
+        except (IndexError, ValueError):
+            return feature_series
+
+        if live_timestamp.date() < latest_feature_timestamp.date():
+            return feature_series
+
+        append_new_row = live_timestamp.date() > latest_feature_timestamp.date()
+        updated_timestamps = list(feature_series.timestamps)
+        if append_new_row:
+            updated_timestamps.append(live_price.timestamp)
+        else:
+            updated_timestamps[-1] = live_price.timestamp
+
+        raw_by_channel: dict[str, np.ndarray] = {}
+        normalized_by_channel: dict[str, np.ndarray] = {}
+        minimum_by_channel: dict[str, float] = {}
+        maximum_by_channel: dict[str, float] = {}
+
+        for channel_name, raw_values in feature_series.raw_by_channel.items():
+            updated_values = np.asarray(raw_values, dtype=float).copy()
+            next_value = float(live_price.close) if channel_name == "price" else float(updated_values[-1])
+            if append_new_row:
+                updated_values = np.concatenate((updated_values, np.array([next_value], dtype=float)))
+            else:
+                updated_values[-1] = next_value
+
+            minimum_value = float(np.min(updated_values))
+            maximum_value = float(np.max(updated_values))
+            scale = maximum_value - minimum_value
+            if scale == 0:
+                normalized_values = np.zeros_like(updated_values, dtype=float)
+            else:
+                normalized_values = (updated_values - minimum_value) / scale
+
+            raw_by_channel[channel_name] = updated_values
+            normalized_by_channel[channel_name] = normalized_values
+            minimum_by_channel[channel_name] = minimum_value
+            maximum_by_channel[channel_name] = maximum_value
+
+        return FeatureSeries(
+            stock_id=feature_series.stock_id,
+            ticker=feature_series.ticker,
+            timestamps=updated_timestamps,
+            raw_by_channel=raw_by_channel,
+            normalized_by_channel=normalized_by_channel,
+            minimum_by_channel=minimum_by_channel,
+            maximum_by_channel=maximum_by_channel,
+        )
 
     def _load_feature_series(self, stock_config: dict[str, Any]) -> FeatureSeries:
         return self.feature_series_loader.load(stock_config, self.feature_channels)
