@@ -1,5 +1,9 @@
 # ChronoSpectra
 
+[![Live Website](https://img.shields.io/badge/Live%20Website-https%3A%2F%2Fchronospectra.gabrieljames.me%2F-blue?style=for-the-badge&logo=vercel)](https://chronospectra.gabrieljames.me/)
+
+> Advanced Time-Series Forecasting Platform
+
 ChronoSpectra is a configuration-driven financial time-series forecasting platform built with a FastAPI backend and a React + TypeScript frontend. It supports end-to-end workflows for data ingestion, signal transforms, CNN-based prediction, model comparison, live monitoring, and optional retraining.
 
 ## What This Project Is
