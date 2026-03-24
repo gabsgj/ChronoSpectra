@@ -163,6 +163,34 @@ export const useLiveMarket = (
       }))
     }
 
+    const diagnoseTerminalStreamFailure = async () => {
+      try {
+        await apiClient.getPrediction(
+          stockId,
+          {
+            mode: mode ?? undefined,
+            signal: availabilityController.signal,
+          },
+        )
+        if (availabilityController.signal.aborted) {
+          return
+        }
+        setTerminalError(
+          'The live stream stopped after 3 reconnect attempts.',
+          'The prediction endpoint is reachable, so the failure is specific to the live SSE connection or proxy path.',
+        )
+      } catch (error) {
+        if (availabilityController.signal.aborted) {
+          return
+        }
+        const formattedError = formatApiError(
+          error,
+          'The live stream stopped after 3 reconnect attempts.',
+        )
+        setTerminalError(formattedError.error, formattedError.hint)
+      }
+    }
+
     const openStream = async () => {
       let streamUrl: string
       try {
@@ -234,14 +262,8 @@ export const useLiveMarket = (
         }
 
         if (reconnectAttempt >= RECONNECT_DELAYS_MS.length) {
-          setState((currentState) => ({
-            ...currentState,
-            connectionState: 'error',
-            error: 'The live stream stopped after 3 reconnect attempts.',
-            hint: 'Retry after confirming the backend SSE endpoint is reachable, CORS allows this origin, and proxy buffering is disabled for live streams.',
-            reconnectAttempt,
-          }))
           allowReconnect = false
+          void diagnoseTerminalStreamFailure()
           return
         }
 

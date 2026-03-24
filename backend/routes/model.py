@@ -268,14 +268,43 @@ def load_scaler_or_error(registry: ModelRegistry, stock_id: str) -> ScalingMetad
         )
     with scaler_path.open("rb") as handle:
         loaded_scaler = pickle.load(handle)
-    if not isinstance(loaded_scaler, ScalingMetadata):
-        raise_structured_http_error(
-            503,
-            "invalid_scaler_artifact",
-            f"Scaler artifact for '{stock_id}' could not be parsed.",
-            artifact_path=str(scaler_path),
+    return coerce_scaling_metadata_or_error(stock_id, loaded_scaler, scaler_path)
+
+
+def coerce_scaling_metadata_or_error(
+    stock_id: str,
+    loaded_scaler: Any,
+    scaler_path: Path,
+) -> ScalingMetadata:
+    if isinstance(loaded_scaler, ScalingMetadata):
+        return loaded_scaler
+
+    if isinstance(loaded_scaler, dict):
+        minimum_value = loaded_scaler.get("minimum_value")
+        maximum_value = loaded_scaler.get("maximum_value")
+        if isinstance(minimum_value, (int, float)) and isinstance(maximum_value, (int, float)):
+            return ScalingMetadata(
+                stock_id=stock_id,
+                minimum_value=float(minimum_value),
+                maximum_value=float(maximum_value),
+            )
+
+    minimum_value = getattr(loaded_scaler, "minimum_value", None)
+    maximum_value = getattr(loaded_scaler, "maximum_value", None)
+    legacy_stock_id = getattr(loaded_scaler, "stock_id", stock_id)
+    if isinstance(minimum_value, (int, float)) and isinstance(maximum_value, (int, float)):
+        return ScalingMetadata(
+            stock_id=str(legacy_stock_id or stock_id),
+            minimum_value=float(minimum_value),
+            maximum_value=float(maximum_value),
         )
-    return loaded_scaler
+
+    raise_structured_http_error(
+        503,
+        "invalid_scaler_artifact",
+        f"Scaler artifact for '{stock_id}' could not be parsed.",
+        artifact_path=str(scaler_path),
+    )
 
 
 def load_report_payload(mode: str, stock_id: str) -> dict[str, Any]:
