@@ -169,7 +169,7 @@ class YFinanceFetcher(BaseDataFetcher):
         interval: str,
     ) -> pd.DataFrame | None:
         try:
-            history_frame = ticker.history(period=period, interval=interval, auto_adjust=False)
+            history_frame = ticker.history(period=period, interval=interval, auto_adjust=True)
         except Exception as exc:
             LOGGER.warning(
                 "yfinance history fetch failed for %s period=%s interval=%s: %s",

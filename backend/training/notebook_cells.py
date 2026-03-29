@@ -251,7 +251,7 @@ def _data_pipeline_source() -> str:
     LOOKBACK_DAYS = max(WINDOW_LENGTH * 4, N_FFT)
 
     def fetch_history(ticker_symbol: str, period: str) -> pd.DataFrame:
-        history = yf.Ticker(ticker_symbol).history(period=period, interval="1d", auto_adjust=False)
+        history = yf.Ticker(ticker_symbol).history(period=period, interval="1d", auto_adjust=True)
         if isinstance(history, pd.DataFrame):
             return history
         return pd.DataFrame()
