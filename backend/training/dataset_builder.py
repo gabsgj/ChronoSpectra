@@ -13,6 +13,7 @@ from signal_processing.transforms import get_transform
 from training.feature_channels import resolve_feature_channels
 from training.training_types import (
     DatasetBundle,
+    ScalingArtifact,
     ScalingMetadata,
     SpectrogramDataset,
     TrainingSampleRecord,
@@ -106,9 +107,9 @@ class DatasetBuilder:
         transform: Any,
         lookback_days: int,
         prediction_horizon_days: int,
-    ) -> tuple[list[TrainingSampleRecord], dict[str, ScalingMetadata]]:
+    ) -> tuple[list[TrainingSampleRecord], dict[str, ScalingArtifact]]:
         samples: list[TrainingSampleRecord] = []
-        scalers: dict[str, ScalingMetadata] = {}
+        scalers: dict[str, ScalingArtifact] = {}
         expected_shape: tuple[int, ...] | None = None
         for stock_config in stock_configs:
             stock_samples, scaler = self._build_stock_samples(
@@ -130,13 +131,8 @@ class DatasetBuilder:
         transform: Any,
         lookback_days: int,
         prediction_horizon_days: int,
-    ) -> tuple[list[TrainingSampleRecord], ScalingMetadata]:
+    ) -> tuple[list[TrainingSampleRecord], ScalingArtifact]:
         feature_series = self._load_feature_series(stock_config)
-        scaler = ScalingMetadata(
-            stock_id=stock_config["id"],
-            minimum_value=feature_series.price_minimum_value,
-            maximum_value=feature_series.price_maximum_value,
-        )
         upper_bound = (
             len(feature_series.timestamps)
             - lookback_days
@@ -145,6 +141,14 @@ class DatasetBuilder:
         )
         if upper_bound <= 0:
             raise ValueError(f"Not enough history to build samples for {stock_config['id']}.")
+        scaler = self._fit_scaling_artifact(
+            stock_config["id"],
+            feature_series,
+            upper_bound,
+            lookback_days,
+            prediction_horizon_days,
+        )
+        normalized_channels = self._normalize_training_channels(feature_series, scaler)
         samples = [
             self._build_sample_record(
                 stock_config["id"],
@@ -152,11 +156,68 @@ class DatasetBuilder:
                 lookback_days,
                 prediction_horizon_days,
                 feature_series,
+                normalized_channels,
                 transform,
             )
             for start_index in range(upper_bound)
         ]
         return samples, scaler
+
+    def _fit_scaling_artifact(
+        self,
+        stock_id: str,
+        feature_series: FeatureSeries,
+        total_samples: int,
+        lookback_days: int,
+        prediction_horizon_days: int,
+    ) -> ScalingArtifact:
+        train_end, _ = self._split_bounds(total_samples)
+        if train_end <= 0:
+            raise ValueError(
+                f"Training split produced zero samples for {stock_id}. Increase the "
+                "training split ratio or fetch more history."
+            )
+
+        training_series_end = min(
+            train_end + lookback_days + prediction_horizon_days - 1,
+            len(feature_series.timestamps),
+        )
+        channel_scalers: dict[str, ScalingMetadata] = {}
+        
+        required_channels = set(self.feature_channels)
+        required_channels.add("price")
+
+        for channel_name in required_channels:
+            training_values = np.asarray(
+                feature_series.raw_by_channel[channel_name][:training_series_end],
+                dtype=float,
+            )
+            channel_scalers[channel_name] = ScalingMetadata(
+                stock_id=stock_id,
+                minimum_value=float(np.min(training_values)),
+                maximum_value=float(np.max(training_values)),
+            )
+
+        return ScalingArtifact(
+            stock_id=stock_id,
+            price_scaler=channel_scalers["price"],
+            channel_scalers=channel_scalers,
+        )
+
+    def _normalize_training_channels(
+        self,
+        feature_series: FeatureSeries,
+        scaler: ScalingArtifact,
+    ) -> dict[str, np.ndarray]:
+        required_channels = set(self.feature_channels)
+        required_channels.add("price")
+        return {
+            channel_name: scaler.normalize_channel(
+                channel_name,
+                feature_series.raw_by_channel[channel_name],
+            )
+            for channel_name in required_channels
+        }
 
     def _build_sample_record(
         self,
@@ -165,6 +226,7 @@ class DatasetBuilder:
         lookback_days: int,
         prediction_horizon_days: int,
         feature_series: FeatureSeries,
+        normalized_channels: dict[str, np.ndarray],
         transform: Any,
     ) -> TrainingSampleRecord:
         stop_index = start_index + lookback_days
@@ -173,14 +235,14 @@ class DatasetBuilder:
 
         channel_spectrograms: list[np.ndarray] = []
         for channel_name in self.feature_channels:
-            channel_values = feature_series.normalized_by_channel[channel_name]
+            channel_values = normalized_channels[channel_name]
             window_signal = channel_values[start_index:stop_index]
             spectrogram, _, _ = transform.transform(window_signal)
             channel_spectrograms.append(np.asarray(spectrogram, dtype=np.float32))
 
         stacked_inputs = np.stack(channel_spectrograms, axis=0)
 
-        price_normalized = feature_series.normalized_price_values
+        price_normalized = normalized_channels["price"]
         price_raw = feature_series.raw_price_values
         timestamps = feature_series.timestamps
 
@@ -200,6 +262,7 @@ class DatasetBuilder:
         self,
         stock_config: dict[str, Any],
         live_price: PricePoint | None = None,
+        scaler: ScalingArtifact | None = None,
     ) -> dict[str, Any]:
         feature_series = self._load_feature_series(stock_config)
         if live_price is not None:
@@ -211,9 +274,10 @@ class DatasetBuilder:
             )
 
         transform = get_transform(self.transform_name, self.config)
+        normalized_channels = self._normalize_prediction_channels(feature_series, scaler)
         channel_spectrograms: list[np.ndarray] = []
         for channel_name in self.feature_channels:
-            channel_values = feature_series.normalized_by_channel[channel_name]
+            channel_values = normalized_channels[channel_name]
             window_signal = channel_values[-lookback_days:]
             spectrogram, _, _ = transform.transform(window_signal)
             channel_spectrograms.append(np.asarray(spectrogram, dtype=np.float32))
@@ -227,6 +291,24 @@ class DatasetBuilder:
             "as_of_timestamp": feature_series.timestamps[-1],
             "signal_window_length": lookback_days,
             "feature_channels": list(self.feature_channels),
+        }
+
+    def _normalize_prediction_channels(
+        self,
+        feature_series: FeatureSeries,
+        scaler: ScalingArtifact | None,
+    ) -> dict[str, np.ndarray]:
+        if scaler is not None and scaler.supports_channels(self.feature_channels):
+            return {
+                channel_name: scaler.normalize_channel(
+                    channel_name,
+                    feature_series.raw_by_channel[channel_name],
+                )
+                for channel_name in self.feature_channels
+            }
+        return {
+            channel_name: np.asarray(feature_series.normalized_by_channel[channel_name], dtype=float)
+            for channel_name in self.feature_channels
         }
 
     def _apply_live_price(
@@ -320,8 +402,12 @@ class DatasetBuilder:
         samples: list[TrainingSampleRecord],
     ) -> tuple[list[TrainingSampleRecord], list[TrainingSampleRecord], list[TrainingSampleRecord]]:
         total_samples = len(samples)
+        train_end, val_end = self._split_bounds(total_samples)
+        return samples[:train_end], samples[train_end:val_end], samples[val_end:]
+
+    def _split_bounds(self, total_samples: int) -> tuple[int, int]:
         train_ratio = float(self.config["training"]["split"]["train"])
         val_ratio = float(self.config["training"]["split"]["val"])
         train_end = int(total_samples * train_ratio)
         val_end = train_end + int(total_samples * val_ratio)
-        return samples[:train_end], samples[train_end:val_end], samples[val_end:]
+        return train_end, val_end

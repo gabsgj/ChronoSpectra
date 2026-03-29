@@ -24,7 +24,7 @@ from routes.api_models import (
 )
 from routes.utils import load_json_file, raise_structured_http_error, require_stock
 from training.dataset_builder import DatasetBuilder
-from training.training_types import ScalingMetadata
+from training.training_types import ScalingArtifact, ScalingMetadata
 
 router = APIRouter(tags=["model"])
 REPORT_STORE_DIR = Path(__file__).resolve().parents[1] / "models" / "model_store" / "reports"
@@ -68,6 +68,7 @@ def build_prediction_response(
         request.app.state.config,
         request.app.state.data_cache,
         live_price=live_price,
+        scaler=scaler,
     )
     prediction_tensor = run_model_prediction(
         load_result,
@@ -224,10 +225,11 @@ def build_latest_input_window(
     app_config: dict[str, Any],
     cache: DataCache,
     live_price: PricePoint | None = None,
+    scaler: ScalingArtifact | None = None,
 ) -> dict[str, Any]:
     builder = DatasetBuilder(app_config, cache)
     try:
-        return builder.build_latest_input_window(stock, live_price=live_price)
+        return builder.build_latest_input_window(stock, live_price=live_price, scaler=scaler)
     except ValueError as exc:
         raise_structured_http_error(
             503,
@@ -253,7 +255,7 @@ def run_model_prediction(
         return load_result.model.predict(input_tensor)
 
 
-def load_scaler_or_error(registry: ModelRegistry, stock_id: str) -> ScalingMetadata:
+def load_scaler_or_error(registry: ModelRegistry, stock_id: str) -> ScalingArtifact:
     scaler_path = registry.resolve_scaler_path(stock_id)
     if not scaler_path.exists():
         raise_structured_http_error(
@@ -268,35 +270,52 @@ def load_scaler_or_error(registry: ModelRegistry, stock_id: str) -> ScalingMetad
         )
     with scaler_path.open("rb") as handle:
         loaded_scaler = pickle.load(handle)
-    return coerce_scaling_metadata_or_error(stock_id, loaded_scaler, scaler_path)
+    return coerce_scaling_artifact_or_error(stock_id, loaded_scaler, scaler_path)
 
 
-def coerce_scaling_metadata_or_error(
+def coerce_scaling_artifact_or_error(
     stock_id: str,
     loaded_scaler: Any,
     scaler_path: Path,
-) -> ScalingMetadata:
-    if isinstance(loaded_scaler, ScalingMetadata):
+) -> ScalingArtifact:
+    if isinstance(loaded_scaler, ScalingArtifact):
         return loaded_scaler
+
+    if isinstance(loaded_scaler, ScalingMetadata):
+        return _wrap_legacy_price_scaler(loaded_scaler)
 
     if isinstance(loaded_scaler, dict):
         minimum_value = loaded_scaler.get("minimum_value")
         maximum_value = loaded_scaler.get("maximum_value")
         if isinstance(minimum_value, (int, float)) and isinstance(maximum_value, (int, float)):
-            return ScalingMetadata(
-                stock_id=stock_id,
+            resolved_stock_id = str(loaded_scaler.get("stock_id") or stock_id)
+            price_scaler = ScalingMetadata(
+                stock_id=resolved_stock_id,
                 minimum_value=float(minimum_value),
                 maximum_value=float(maximum_value),
+            )
+            channel_scalers = _coerce_channel_scalers(
+                resolved_stock_id,
+                loaded_scaler.get("channel_scalers"),
+            )
+            if "price" in channel_scalers:
+                price_scaler = channel_scalers["price"]
+            return ScalingArtifact(
+                stock_id=resolved_stock_id,
+                price_scaler=price_scaler,
+                channel_scalers=channel_scalers,
             )
 
     minimum_value = getattr(loaded_scaler, "minimum_value", None)
     maximum_value = getattr(loaded_scaler, "maximum_value", None)
     legacy_stock_id = getattr(loaded_scaler, "stock_id", stock_id)
     if isinstance(minimum_value, (int, float)) and isinstance(maximum_value, (int, float)):
-        return ScalingMetadata(
-            stock_id=str(legacy_stock_id or stock_id),
-            minimum_value=float(minimum_value),
-            maximum_value=float(maximum_value),
+        return _wrap_legacy_price_scaler(
+            ScalingMetadata(
+                stock_id=str(legacy_stock_id or stock_id),
+                minimum_value=float(minimum_value),
+                maximum_value=float(maximum_value),
+            )
         )
 
     raise_structured_http_error(
@@ -305,6 +324,37 @@ def coerce_scaling_metadata_or_error(
         f"Scaler artifact for '{stock_id}' could not be parsed.",
         artifact_path=str(scaler_path),
     )
+
+
+def _wrap_legacy_price_scaler(price_scaler: ScalingMetadata) -> ScalingArtifact:
+    return ScalingArtifact(
+        stock_id=price_scaler.stock_id,
+        price_scaler=price_scaler,
+        channel_scalers={},
+    )
+
+
+def _coerce_channel_scalers(
+    stock_id: str,
+    payload: Any,
+) -> dict[str, ScalingMetadata]:
+    if not isinstance(payload, dict):
+        return {}
+
+    channel_scalers: dict[str, ScalingMetadata] = {}
+    for channel_name, scaler_payload in payload.items():
+        if not isinstance(channel_name, str) or not isinstance(scaler_payload, dict):
+            continue
+        minimum_value = scaler_payload.get("minimum_value")
+        maximum_value = scaler_payload.get("maximum_value")
+        if not isinstance(minimum_value, (int, float)) or not isinstance(maximum_value, (int, float)):
+            continue
+        channel_scalers[channel_name] = ScalingMetadata(
+            stock_id=stock_id,
+            minimum_value=float(minimum_value),
+            maximum_value=float(maximum_value),
+        )
+    return channel_scalers
 
 
 def load_report_payload(mode: str, stock_id: str) -> dict[str, Any]:

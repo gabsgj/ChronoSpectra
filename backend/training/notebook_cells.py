@@ -17,6 +17,11 @@ def build_notebook_cells(app_config: dict[str, Any], mode: str) -> list[dict[str
                 "files load into `ModelRegistry` without renaming layers."
             ),
         ),
+        _markdown_cell(
+            "Mount Google Drive",
+            "Run this first in Colab so the export target is ready before training starts.",
+        ),
+        _code_cell(_drive_mount_source()),
         _code_cell(_dependency_install_source()),
         _markdown_cell(
             "Configuration Snapshot",
@@ -72,6 +77,23 @@ def _code_cell(source: str) -> dict[str, Any]:
 def _dependency_install_source() -> str:
     return """
     !pip install -q yfinance torch scipy matplotlib pandas scikit-learn
+    """
+
+
+def _drive_mount_source() -> str:
+    return """
+    from pathlib import Path
+
+    try:
+        from google.colab import drive
+    except ImportError:
+        DRIVE_TARGET = None
+        print("google.colab is unavailable outside Colab; skipping Drive mount.")
+    else:
+        drive.mount("/content/drive")
+        DRIVE_TARGET = Path("/content/drive/MyDrive/ChronoSpectraArtifacts")
+        DRIVE_TARGET.mkdir(parents=True, exist_ok=True)
+        print("Google Drive mounted at", DRIVE_TARGET)
     """
 
 
@@ -330,6 +352,12 @@ def _data_pipeline_source() -> str:
             return np.full_like(values, scaler["minimum_value"], dtype=float)
         return values * scale + scaler["minimum_value"]
 
+    def normalize_with_scaler(values: np.ndarray, scaler: dict) -> np.ndarray:
+        scale = scaler["maximum_value"] - scaler["minimum_value"]
+        if scale == 0:
+            return np.zeros_like(values, dtype=float)
+        return (values - scaler["minimum_value"]) / scale
+
     def build_stft_spectrogram(window_values: np.ndarray) -> np.ndarray:
         _, _, spectrum = stft(
             window_values,
@@ -436,12 +464,38 @@ def _data_pipeline_source() -> str:
     def build_samples(stock_config: dict, stock_index: int) -> tuple[list[dict], dict]:
         feature_series = load_feature_series(stock_config)
         raw_values = feature_series["raw_by_channel"]["price"]
-        normalized_values = feature_series["normalized_by_channel"]["price"]
         timestamps = feature_series["timestamps"]
         horizon = int(stock_config["model"]["prediction_horizon_days"])
-        upper_bound = len(normalized_values) - LOOKBACK_DAYS - horizon + 1
+        upper_bound = len(raw_values) - LOOKBACK_DAYS - horizon + 1
         if upper_bound <= 0:
             raise ValueError(f"Not enough history to build samples for {stock_config['id']}.")
+        train_sample_count = int(upper_bound * float(CONFIG["training"]["split"]["train"]))
+        if train_sample_count <= 0:
+            raise ValueError(
+                f"Training split produced zero samples for {stock_config['id']}. "
+                "Increase the train split or fetch more history."
+            )
+        scaling_end = min(
+            train_sample_count + LOOKBACK_DAYS + horizon - 1,
+            len(feature_series["timestamps"]),
+        )
+        channel_scalers = {}
+        normalized_by_channel = {}
+        
+        channels_to_normalize = set(FEATURE_CHANNEL_NAMES)
+        channels_to_normalize.add("price")
+
+        for channel_name in channels_to_normalize:
+            train_values = feature_series["raw_by_channel"][channel_name][:scaling_end]
+            channel_scalers[channel_name] = {
+                "minimum_value": float(np.min(train_values)),
+                "maximum_value": float(np.max(train_values)),
+            }
+            normalized_by_channel[channel_name] = normalize_with_scaler(
+                feature_series["raw_by_channel"][channel_name],
+                channel_scalers[channel_name],
+            )
+        normalized_values = normalized_by_channel["price"]
         samples = []
         for start_index in range(upper_bound):
             stop_index = start_index + LOOKBACK_DAYS
@@ -449,7 +503,7 @@ def _data_pipeline_source() -> str:
             label_index = window_end_index + horizon
             channel_spectrograms = []
             for channel_name in FEATURE_CHANNEL_NAMES:
-                channel_values = feature_series["normalized_by_channel"][channel_name]
+                channel_values = normalized_by_channel[channel_name]
                 spectrogram = build_stft_spectrogram(
                     channel_values[start_index:stop_index]
                 ).astype(np.float32)
@@ -467,8 +521,10 @@ def _data_pipeline_source() -> str:
                 }
             )
         return samples, {
-            "minimum_value": feature_series["minimum_by_channel"]["price"],
-            "maximum_value": feature_series["maximum_by_channel"]["price"],
+            "stock_id": stock_config["id"],
+            "minimum_value": channel_scalers["price"]["minimum_value"],
+            "maximum_value": channel_scalers["price"]["maximum_value"],
+            "channel_scalers": channel_scalers,
         }
     """
 
@@ -771,23 +827,16 @@ def _run_training_source(mode: str) -> str:
 def _drive_export_source() -> str:
     return """
 import shutil
-from pathlib import Path
 
-try:
-    from google.colab import drive
-except ImportError:
-    print("google.colab is unavailable outside Colab; skipping Drive export.")
-else:
-    drive.mount("/content/drive")
-    drive_target = Path("/content/drive/MyDrive/ChronoSpectraArtifacts")
-    drive_target.mkdir(parents=True, exist_ok=True)
+if DRIVE_TARGET is None:
+    raise ValueError("Run the 'Mount Google Drive' cell first.")
 
-    for artifact_path in OUTPUT_DIR.rglob("*"):
-        if artifact_path.is_file():
-            relative_path = artifact_path.relative_to(OUTPUT_DIR)
-            destination_path = drive_target / relative_path
-            destination_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(artifact_path, destination_path)
+for artifact_path in OUTPUT_DIR.rglob("*"):
+    if artifact_path.is_file():
+        relative_path = artifact_path.relative_to(OUTPUT_DIR)
+        destination_path = DRIVE_TARGET / relative_path
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(artifact_path, destination_path)
 
-    print("Artifacts copied to", drive_target)
+print("Artifacts copied to", DRIVE_TARGET)
     """

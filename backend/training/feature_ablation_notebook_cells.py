@@ -9,6 +9,7 @@ from training.notebook_cells import (
     _config_source,
     _data_pipeline_source,
     _dependency_install_source,
+    _drive_mount_source,
     _drive_export_source,
     _markdown_cell,
     _model_architecture_source,
@@ -30,6 +31,11 @@ def build_feature_ablation_notebook_cells(
                 "active stock, and keeps the artifact layout compatible with the app importer."
             ),
         ),
+        _markdown_cell(
+            "Mount Google Drive",
+            "Run this first in Colab so the export target is ready before the ablation run starts.",
+        ),
+        _code_cell(_drive_mount_source()),
         _code_cell(_dependency_install_source()),
         _markdown_cell(
             "Configuration Snapshot",

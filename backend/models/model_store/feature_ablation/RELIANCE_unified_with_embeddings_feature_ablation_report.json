@@ -1,7 +1,7 @@
 {
   "stock_id": "RELIANCE",
   "mode": "unified_with_embeddings",
-  "generated_at": "2026-03-22T13:34:24.893097Z",
+  "generated_at": "2026-03-27T16:49:54.665991Z",
   "report_path": "/app/backend/models/model_store/feature_ablation/RELIANCE_unified_with_embeddings_feature_ablation_report.json",
   "configured_channels": [
     "price",
@@ -22,11 +22,11 @@
         "profit"
       ],
       "removed_channel": null,
-      "mse": 75517.1328125,
-      "rmse": 274.8038078566234,
-      "mae": 255.00489807128906,
-      "mape": 17.924116134643555,
-      "directional_accuracy": 52.27272727272727,
+      "mse": 6641.060546875,
+      "rmse": 81.49270241484817,
+      "mae": 67.8553695678711,
+      "mape": 4.788622856140137,
+      "directional_accuracy": 46.86192468619247,
       "delta_mse": null,
       "delta_rmse": null,
       "delta_mae": null,
@@ -42,16 +42,16 @@
         "profit"
       ],
       "removed_channel": "price",
-      "mse": 31203.345703125,
-      "rmse": 176.64468772970503,
-      "mae": 137.21054077148438,
-      "mape": 9.50999641418457,
-      "directional_accuracy": 56.36363636363636,
-      "delta_mse": -44313.787109375,
-      "delta_rmse": -98.15912012691837,
-      "delta_mae": -117.79435729980469,
-      "delta_mape": -8.414119720458984,
-      "delta_directional_accuracy": 4.090909090909086
+      "mse": 13504.244140625,
+      "rmse": 116.20776282428382,
+      "mae": 98.60685729980469,
+      "mape": 7.011826992034912,
+      "directional_accuracy": 53.13807531380753,
+      "delta_mse": 6863.18359375,
+      "delta_rmse": 34.71506040943565,
+      "delta_mae": 30.751487731933594,
+      "delta_mape": 2.2232041358947754,
+      "delta_directional_accuracy": 6.276150627615067
     },
     {
       "label": "minus_index",
@@ -62,16 +62,16 @@
         "profit"
       ],
       "removed_channel": "index",
-      "mse": 13221.5654296875,
-      "rmse": 114.98506611594176,
-      "mae": 98.81890869140625,
-      "mape": 6.972952842712402,
-      "directional_accuracy": 44.54545454545455,
-      "delta_mse": -62295.5673828125,
-      "delta_rmse": -159.81874174068162,
-      "delta_mae": -156.1859893798828,
-      "delta_mape": -10.951163291931152,
-      "delta_directional_accuracy": -7.727272727272727
+      "mse": 17846.771484375,
+      "rmse": 133.59180919642864,
+      "mae": 114.54981231689453,
+      "mape": 7.851192474365234,
+      "directional_accuracy": 45.60669456066946,
+      "delta_mse": 11205.7109375,
+      "delta_rmse": 52.099106781580474,
+      "delta_mae": 46.69444274902344,
+      "delta_mape": 3.0625696182250977,
+      "delta_directional_accuracy": -1.2552301255230063
     },
     {
       "label": "minus_usd_inr",
@@ -82,16 +82,16 @@
         "profit"
       ],
       "removed_channel": "usd_inr",
-      "mse": 39499.6015625,
-      "rmse": 198.74506676267464,
-      "mae": 178.3214111328125,
-      "mape": 12.561853408813477,
-      "directional_accuracy": 52.488687782805435,
-      "delta_mse": -36017.53125,
-      "delta_rmse": -76.05874109394875,
-      "delta_mae": -76.68348693847656,
-      "delta_mape": -5.362262725830078,
-      "delta_directional_accuracy": 0.21596051007816186
+      "mse": 8150.33740234375,
+      "rmse": 90.27921910574852,
+      "mae": 77.84815979003906,
+      "mape": 5.44460916519165,
+      "directional_accuracy": 47.083333333333336,
+      "delta_mse": 1509.27685546875,
+      "delta_rmse": 8.786516690900356,
+      "delta_mae": 9.992790222167969,
+      "delta_mape": 0.6559863090515137,
+      "delta_directional_accuracy": 0.22140864714086916
     },
     {
       "label": "minus_revenue",
@@ -102,16 +102,16 @@
         "profit"
       ],
       "removed_channel": "revenue",
-      "mse": 225429.75,
-      "rmse": 474.7944292006805,
-      "mae": 466.1234436035156,
-      "mape": 32.51384353637695,
-      "directional_accuracy": 52.27272727272727,
-      "delta_mse": 149912.6171875,
-      "delta_rmse": 199.9906213440571,
-      "delta_mae": 211.11854553222656,
-      "delta_mape": 14.589727401733398,
-      "delta_directional_accuracy": 0.0
+      "mse": 8125.05029296875,
+      "rmse": 90.13906086136437,
+      "mae": 74.35015106201172,
+      "mape": 5.167962551116943,
+      "directional_accuracy": 46.44351464435147,
+      "delta_mse": 1483.98974609375,
+      "delta_rmse": 8.646358446516203,
+      "delta_mae": 6.494781494140625,
+      "delta_mape": 0.37933969497680664,
+      "delta_directional_accuracy": -0.4184100418409997
     },
     {
       "label": "minus_profit",
@@ -122,16 +122,16 @@
         "revenue"
       ],
       "removed_channel": "profit",
-      "mse": 21878.09375,
-      "rmse": 147.9124529916261,
-      "mae": 121.83277130126953,
-      "mape": 8.461172103881836,
-      "directional_accuracy": 54.54545454545454,
-      "delta_mse": -53639.0390625,
-      "delta_rmse": -126.89135486499728,
-      "delta_mae": -133.17212677001953,
-      "delta_mape": -9.462944030761719,
-      "delta_directional_accuracy": 2.2727272727272663
+      "mse": 6974.806640625,
+      "rmse": 83.51530782212923,
+      "mae": 71.1340103149414,
+      "mape": 5.016631603240967,
+      "directional_accuracy": 48.95397489539749,
+      "delta_mse": 333.74609375,
+      "delta_rmse": 2.0226054072810626,
+      "delta_mae": 3.2786407470703125,
+      "delta_mape": 0.22800874710083008,
+      "delta_directional_accuracy": 2.09205020920502
     }
   ]
 }

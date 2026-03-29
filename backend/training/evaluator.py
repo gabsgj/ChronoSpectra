@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 from models.base_model import BaseModel
 from models.unified_cnn_with_embeddings import UnifiedCNNWithEmbeddings
-from training.training_types import EvaluationReport, ScalingMetadata, SpectrogramDataset
+from training.training_types import EvaluationReport, ScalingArtifact, SpectrogramDataset
 
 
 class Evaluator:
@@ -18,7 +18,7 @@ class Evaluator:
         self,
         model: BaseModel,
         dataset: SpectrogramDataset,
-        scalers_by_stock: dict[str, ScalingMetadata],
+        scalers_by_stock: dict[str, ScalingArtifact],
         device: str | torch.device = "cpu",
         batch_size: int = 32,
     ) -> EvaluationReport:
@@ -65,7 +65,7 @@ class Evaluator:
         reference_prices_raw: np.ndarray,
         stock_ids: list[str],
         timestamps: list[str],
-        scalers_by_stock: dict[str, ScalingMetadata],
+        scalers_by_stock: dict[str, ScalingArtifact],
     ) -> EvaluationReport:
         if predictions_normalized.size == 0 or targets_normalized.size == 0:
             raise ValueError("Evaluator requires at least one prediction.")
@@ -114,7 +114,7 @@ class Evaluator:
         self,
         values: np.ndarray,
         stock_ids: list[str],
-        scalers_by_stock: dict[str, ScalingMetadata],
+        scalers_by_stock: dict[str, ScalingArtifact],
     ) -> np.ndarray:
         denormalized = np.zeros_like(values, dtype=float)
         for index, stock_id in enumerate(stock_ids):

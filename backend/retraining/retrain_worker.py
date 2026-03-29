@@ -24,7 +24,7 @@ from training.train_loop import TrainLoop
 from training.training_types import (
     DatasetBundle,
     EvaluationReport,
-    ScalingMetadata,
+    ScalingArtifact,
     SpectrogramDataset,
     TrainingRunResult,
 )
@@ -329,13 +329,13 @@ class RetrainWorker:
             raise ValueError(f"No evaluation samples found for '{self.stock_id}'.")
         return SpectrogramDataset(filtered_samples)
 
-    def _write_scalers(self, scalers_by_stock: dict[str, ScalingMetadata]) -> dict[str, str]:
+    def _write_scalers(self, scalers_by_stock: dict[str, ScalingArtifact]) -> dict[str, str]:
         scaler_paths: dict[str, str] = {}
         for stock_id, scaler in scalers_by_stock.items():
             scaler_path = self.model_registry.resolve_scaler_path(stock_id)
             scaler_path.parent.mkdir(parents=True, exist_ok=True)
             with scaler_path.open("wb") as handle:
-                pickle.dump(scaler, handle)
+                pickle.dump(scaler.as_dict(), handle)
             scaler_paths[stock_id] = str(scaler_path)
         return scaler_paths
 
@@ -658,13 +658,13 @@ class SharedTrainingWorker:
         model.eval()
         return model
 
-    def _write_scalers(self, scalers_by_stock: dict[str, ScalingMetadata]) -> dict[str, str]:
+    def _write_scalers(self, scalers_by_stock: dict[str, ScalingArtifact]) -> dict[str, str]:
         scaler_paths: dict[str, str] = {}
         for stock_id, scaler in scalers_by_stock.items():
             scaler_path = self.model_registry.resolve_scaler_path(stock_id)
             scaler_path.parent.mkdir(parents=True, exist_ok=True)
             with scaler_path.open("wb") as handle:
-                pickle.dump(scaler, handle)
+                pickle.dump(scaler.as_dict(), handle)
             scaler_paths[stock_id] = str(scaler_path)
         return scaler_paths
 

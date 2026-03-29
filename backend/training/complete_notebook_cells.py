@@ -13,6 +13,7 @@ from training.notebook_cells import (
     _config_source,
     _data_pipeline_source,
     _dependency_install_source,
+    _drive_mount_source,
     _markdown_cell,
     _model_architecture_source,
     _run_training_source,
@@ -34,6 +35,11 @@ def build_complete_notebook_cells(
                 "run can produce a complete artifact bundle for the app."
             ),
         ),
+        _markdown_cell(
+            "Mount Google Drive",
+            "Run this first in Colab so the export target is ready before training or feature ablation starts.",
+        ),
+        _code_cell(_drive_mount_source()),
         _code_cell(_dependency_install_source()),
         _markdown_cell(
             "Configuration Snapshot",
@@ -89,33 +95,26 @@ def build_complete_notebook_cells(
 def _complete_drive_export_source() -> str:
     return """
 import shutil
-from pathlib import Path
 
-try:
-    from google.colab import drive
-except ImportError:
-    print("google.colab is unavailable outside Colab; skipping Drive export.")
-else:
-    drive.mount("/content/drive")
-    drive_target = Path("/content/drive/MyDrive/ChronoSpectraArtifacts")
-    drive_target.mkdir(parents=True, exist_ok=True)
+if DRIVE_TARGET is None:
+    raise ValueError("Run the 'Mount Google Drive' cell first.")
 
-    export_directories = {
-        "training": OUTPUT_DIR,
-        "feature_ablation": FEATURE_ABLATION_OUTPUT_DIR,
-    }
+export_directories = {
+    "training": OUTPUT_DIR,
+    "feature_ablation": FEATURE_ABLATION_OUTPUT_DIR,
+}
 
-    for export_prefix, source_dir in export_directories.items():
-        if not source_dir.exists():
-            continue
-        for artifact_path in source_dir.rglob("*"):
-            if artifact_path.is_file():
-                relative_path = artifact_path.relative_to(source_dir)
-                destination_path = drive_target / export_prefix / relative_path
-                destination_path.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(artifact_path, destination_path)
+for export_prefix, source_dir in export_directories.items():
+    if not source_dir.exists():
+        continue
+    for artifact_path in source_dir.rglob("*"):
+        if artifact_path.is_file():
+            relative_path = artifact_path.relative_to(source_dir)
+            destination_path = DRIVE_TARGET / export_prefix / relative_path
+            destination_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(artifact_path, destination_path)
 
-    print("Complete artifact bundle copied to", drive_target)
+print("Complete artifact bundle copied to", DRIVE_TARGET)
     """
 
 

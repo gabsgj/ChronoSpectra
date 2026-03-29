@@ -145,10 +145,10 @@
       "hht"
     ],
     "stft": {
-      "window_length": 64,
-      "hop_size": 16,
+      "window_length": 32,
+      "hop_size": 8,
       "window_function": "hann",
-      "n_fft": 128
+      "n_fft": 64
     },
     "cwt": {
       "wavelet": "morl",
@@ -172,7 +172,7 @@
       "val": 0.15,
       "test": 0.15
     },
-    "epochs": 100,
+    "epochs": 650,
     "batch_size": 32,
     "learning_rate": 0.001,
     "split_strategy": "time_based"

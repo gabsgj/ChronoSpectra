@@ -15,11 +15,60 @@ class ScalingMetadata:
     minimum_value: float
     maximum_value: float
 
+    def normalize(self, values: np.ndarray) -> np.ndarray:
+        scale = self.maximum_value - self.minimum_value
+        if scale == 0:
+            return np.zeros_like(values, dtype=float)
+        return (values - self.minimum_value) / scale
+
     def denormalize(self, values: np.ndarray) -> np.ndarray:
         scale = self.maximum_value - self.minimum_value
         if scale == 0:
             return np.full_like(values, self.minimum_value, dtype=float)
         return values * scale + self.minimum_value
+
+
+@dataclass(slots=True)
+class ScalingArtifact:
+    stock_id: str
+    price_scaler: ScalingMetadata
+    channel_scalers: dict[str, ScalingMetadata]
+
+    @property
+    def minimum_value(self) -> float:
+        return self.price_scaler.minimum_value
+
+    @property
+    def maximum_value(self) -> float:
+        return self.price_scaler.maximum_value
+
+    def denormalize(self, values: np.ndarray) -> np.ndarray:
+        return self.price_scaler.denormalize(values)
+
+    def normalize_channel(self, channel_name: str, values: np.ndarray) -> np.ndarray:
+        scaler = self.channel_scalers.get(channel_name)
+        if scaler is None:
+            raise ValueError(
+                f"Scaling artifact for '{self.stock_id}' is missing channel '{channel_name}'."
+            )
+        return scaler.normalize(np.asarray(values, dtype=float))
+
+    def supports_channels(self, channel_names: Sequence[str]) -> bool:
+        return all(channel_name in self.channel_scalers for channel_name in channel_names)
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "stock_id": self.stock_id,
+            "minimum_value": self.price_scaler.minimum_value,
+            "maximum_value": self.price_scaler.maximum_value,
+            "channel_scalers": {
+                channel_name: {
+                    "minimum_value": scaler.minimum_value,
+                    "maximum_value": scaler.maximum_value,
+                }
+                for channel_name, scaler in self.channel_scalers.items()
+            },
+        }
 
 
 @dataclass(slots=True)
@@ -78,7 +127,7 @@ class DatasetBundle:
     train_dataset: SpectrogramDataset
     val_dataset: SpectrogramDataset
     test_dataset: SpectrogramDataset
-    scalers_by_stock: dict[str, ScalingMetadata]
+    scalers_by_stock: dict[str, ScalingArtifact]
     feature_channels: list[str]
     transform_name: str
     lookback_days: int
